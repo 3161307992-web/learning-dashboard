@@ -463,6 +463,7 @@ body {
                 <option value="判断推理">判断推理</option>
                 <option value="资料分析">资料分析</option>
                 <option value="常识判断">常识判断</option>
+                <option value="申论">申论</option>
               </select>
             </div>
             <div class="form-group full-mode">
@@ -518,6 +519,7 @@ body {
             <option value="判断推理">判断推理</option>
             <option value="资料分析">资料分析</option>
             <option value="常识判断">常识判断</option>
+            <option value="申论">申论</option>
           </select>
           <select id="wrongFilterReview" onchange="renderWrongList()">
             <option value="">全部状态</option>
@@ -565,6 +567,7 @@ body {
                 <option value="判断推理">判断推理</option>
                 <option value="资料分析">资料分析</option>
                 <option value="常识判断">常识判断</option>
+                <option value="申论">申论</option>
               </select>
             </div>
             <div class="form-group">
@@ -587,6 +590,71 @@ body {
         </form>
         <div class="chart-container"><canvas id="chartAccuracyTrend"></canvas></div>
         <div id="studyRecordList" style="margin-top:20px;"></div>
+      </div>
+
+      <!-- 申论专项练习 -->
+      <div class="card" style="background:linear-gradient(135deg,#f0f4ff,#faf5ff);border-left:4px solid #764ba2;">
+        <div class="card-title"><span><span class="emoji">✍️</span>申论专项练习</span></div>
+        <p style="font-size:13px;color:var(--text-light);margin-bottom:14px;">记录申论练习，按题型分类，积累素材和写作框架</p>
+        <form id="shenlunForm" onsubmit="return false" style="margin-bottom:16px;">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>日期 *</label>
+              <input type="date" name="date" required>
+            </div>
+            <div class="form-group">
+              <label>题型 *</label>
+              <select name="questionType" required>
+                <option value="归纳概括">归纳概括</option>
+                <option value="综合分析">综合分析</option>
+                <option value="提出对策">提出对策</option>
+                <option value="贯彻执行">贯彻执行（应用文）</option>
+                <option value="大作文">大作文</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>练习时长(分钟) *</label>
+              <input type="number" name="duration" required min="1" value="40">
+            </div>
+            <div class="form-group">
+              <label>自评分数(0-100)</label>
+              <input type="number" name="score" min="0" max="100" placeholder="如 72">
+            </div>
+            <div class="form-group full">
+              <label>题目/主题 *</label>
+              <textarea name="topic" required placeholder="如：根据资料，概括基层治理存在的问题（15分）" rows="2"></textarea>
+            </div>
+            <div class="form-group full">
+              <label>我的作答要点</label>
+              <textarea name="myAnswer" placeholder="分条记录你的作答要点" rows="3"></textarea>
+            </div>
+            <div class="form-group full">
+              <label>参考答案/失分点</label>
+              <textarea name="reference" placeholder="参考答案要点、自己的失分原因" rows="3"></textarea>
+            </div>
+            <div class="form-group full">
+              <label>积累的素材/金句</label>
+              <textarea name="materials" placeholder="好词好句、规范表述、政策热词" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" onclick="addShenlunPractice()">💾 保存练习</button>
+            <button class="btn btn-outline" onclick="document.getElementById('shenlunForm').reset();setToday()">重置</button>
+          </div>
+        </form>
+
+        <div class="filter-bar" style="margin-bottom:14px;">
+          <select id="shenlunFilter" onchange="renderShenlunList()">
+            <option value="">全部题型</option>
+            <option value="归纳概括">归纳概括</option>
+            <option value="综合分析">综合分析</option>
+            <option value="提出对策">提出对策</option>
+            <option value="贯彻执行">贯彻执行</option>
+            <option value="大作文">大作文</option>
+          </select>
+        </div>
+        <div id="shenlunStats" style="margin-bottom:14px;"></div>
+        <div id="shenlunList"></div>
       </div>
     </section>
 
@@ -1154,6 +1222,7 @@ const STORAGE_KEY = 'learningDashboard_v2';
 let DB = {
   wrongQuestions: [],
   studyRecords: [],
+  shenlunPractices: [],
   englishStudents: [],
   englishLessons: [],
   speakingTopics: [],
@@ -1176,7 +1245,7 @@ function loadData() {
     try { DB = JSON.parse(raw); } catch(e) { /* 使用默认 */ }
   }
   // 补全缺失字段
-  const keys = ['wrongQuestions','studyRecords','englishStudents','englishLessons',
+  const keys = ['wrongQuestions','studyRecords','shenlunPractices','englishStudents','englishLessons',
     'speakingTopics','englishHomework','putonghuaCourses','students','exercises',
     'reviews','books','readingNotes'];
   keys.forEach(k => { if (!Array.isArray(DB[k])) DB[k] = []; });
@@ -1196,7 +1265,7 @@ function saveData() {
 function uid() { return Date.now() + Math.floor(Math.random() * 10000); }
 
 /* ===================== 常量 ===================== */
-const CIVIL_MODULES = ['言语理解','数量关系','判断推理','资料分析','常识判断'];
+const CIVIL_MODULES = ['言语理解','数量关系','判断推理','资料分析','常识判断','申论'];
 const ERROR_TYPES = ['知识型','方法型','审题型','计算型','粗心型'];
 const REVIEW_INTERVALS = [1, 3, 7, 15, 30];
 const CHART_COLORS = ['#667eea','#43e97b','#fa709a','#fee140','#764ba2','#4facfe','#ff6b6b'];
@@ -1335,6 +1404,8 @@ function renderCivilPage() {
   renderReviewMasteryStats();
   renderStudyRecordChart();
   renderStudyRecordList();
+  renderShenlunStats();
+  renderShenlunList();
 }
 function renderCivilStats() {
   const today = todayStr();
@@ -1813,6 +1884,99 @@ function renderStudyRecordChart() {
     data: { labels: labels, datasets: [{ label: '正确率(%)', data: data, borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)', fill: true, tension: 0.3, pointBackgroundColor: '#764ba2' }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } }
   });
+}
+
+/* ===== 申论专项练习 ===== */
+function addShenlunPractice() {
+  const form = document.getElementById('shenlunForm');
+  const fd = new FormData(form);
+  if (!fd.get('date') || !fd.get('questionType') || !fd.get('topic') || !fd.get('duration')) {
+    alert('请填写必填项（带 * 的字段）');
+    return;
+  }
+  const p = {
+    id: uid(),
+    date: fd.get('date'),
+    questionType: fd.get('questionType'),
+    duration: parseInt(fd.get('duration')) || 0,
+    score: fd.get('score') ? parseInt(fd.get('score')) : null,
+    topic: fd.get('topic'),
+    myAnswer: fd.get('myAnswer') || '',
+    reference: fd.get('reference') || '',
+    materials: fd.get('materials') || ''
+  };
+  DB.shenlunPractices.push(p);
+  saveData();
+  form.reset();
+  setToday();
+  renderShenlunStats();
+  renderShenlunList();
+}
+
+function deleteShenlunPractice(id) {
+  if (!confirm('确定删除这条申论练习记录吗？')) return;
+  DB.shenlunPractices = DB.shenlunPractices.filter(p => p.id !== id);
+  saveData();
+  renderShenlunStats();
+  renderShenlunList();
+}
+
+function renderShenlunStats() {
+  const el = document.getElementById('shenlunStats');
+  if (!el) return;
+  const list = DB.shenlunPractices;
+  if (list.length === 0) {
+    el.innerHTML = '';
+    return;
+  }
+  const totalDur = list.reduce((s, p) => s + (p.duration || 0), 0);
+  const scored = list.filter(p => p.score != null);
+  const avgScore = scored.length > 0 ? Math.round(scored.reduce((s, p) => s + p.score, 0) / scored.length) : '-';
+  const typeCount = {};
+  list.forEach(p => { typeCount[p.questionType] = (typeCount[p.questionType] || 0) + 1; });
+  const typeBadge = Object.keys(typeCount).map(t =>
+    `<span class="tag tag-purple">${t}：${typeCount[t]}次</span>`
+  ).join(' ');
+  el.innerHTML = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:13px;">
+      <span>📝 共练习 <b>${list.length}</b> 次</span>
+      <span>⏱️ 累计 <b>${totalDur}</b> 分钟</span>
+      ${avgScore !== '-' ? `<span>📊 平均自评 <b>${avgScore}</b> 分</span>` : ''}
+      <span style="margin-left:auto;">${typeBadge}</span>
+    </div>
+  `;
+}
+
+function renderShenlunList() {
+  const filter = document.getElementById('shenlunFilter')?.value || '';
+  let list = DB.shenlunPractices.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  if (filter) list = list.filter(p => p.questionType === filter);
+  const el = document.getElementById('shenlunList');
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="emoji">✍️</div><div>暂无申论练习记录，开始你的第一篇练习吧</div></div>';
+    return;
+  }
+  const typeColors = {
+    '归纳概括': 'tag-blue', '综合分析': 'tag-purple', '提出对策': 'tag-green',
+    '贯彻执行': 'tag-orange', '大作文': 'tag-red'
+  };
+  el.innerHTML = list.map(p => `
+    <div class="list-item">
+      <div class="list-header">
+        <div style="flex:1;">
+          <div class="list-title">${p.date} <span class="tag ${typeColors[p.questionType] || 'tag-gray'}">${p.questionType}</span> ${p.score != null ? `<span class="tag tag-gray">自评 ${p.score}分</span>` : ''}</div>
+          <div class="list-meta"><span>⏱️ ${p.duration}分钟</span></div>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="deleteShenlunPractice(${p.id})">🗑️</button>
+      </div>
+      <div style="margin-top:8px;font-size:13px;line-height:1.7;">
+        <div><b>题目：</b>${escapeHtml(p.topic)}</div>
+        ${p.myAnswer ? `<div style="margin-top:4px;"><b>我的要点：</b>${escapeHtml(p.myAnswer)}</div>` : ''}
+        ${p.reference ? `<div style="margin-top:4px;color:#e53e3e;"><b>参考/失分：</b>${escapeHtml(p.reference)}</div>` : ''}
+        ${p.materials ? `<div style="margin-top:4px;color:#805ad5;"><b>素材积累：</b>${escapeHtml(p.materials)}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
 }
 
 /* ===================== 2. 英语课堂 ===================== */
@@ -2792,7 +2956,7 @@ function autoGenerateReview(weekMode) {
     plans.push(`复习今日错题 ${wrongCount} 道，重点理解错误原因和正确解法`);
   }
   if (Object.keys(moduleStats).length < 3) {
-    const allModules = ['言语理解', '数量关系', '判断推理', '资料分析', '常识判断'];
+    const allModules = ['言语理解', '数量关系', '判断推理', '资料分析', '常识判断', '申论'];
     const notStudied = allModules.filter(m => !moduleStats[m]);
     if (notStudied.length > 0) {
       plans.push(`适当安排<strong>${notStudied.slice(0, 2).join('、')}</strong>的学习，保持各模块均衡`);
@@ -3204,6 +3368,7 @@ function generateSampleData() {
     { offset: 1, module: '判断推理', questionType: '图形推理', question: '一组图形呈现顺时针旋转90度规律，问下一个图形是？', myAnswer: 'B', correctAnswer: 'C', errorType: '方法型', analysis: '图形不仅旋转，还有元素数量递增规律。', knowledgePoint: '图形推理-旋转规律' },
     { offset: 3, module: '数量关系', questionType: '行程问题', question: '甲乙从A地出发，甲速60km/h，乙速40km/h，乙先出发1小时，甲几小时追上乙？', myAnswer: '3', correctAnswer: '2', errorType: '计算型', analysis: '追及距离=40×1=40km，速度差=20km/h，追及时间=2小时。', knowledgePoint: '追及问题' },
     { offset: 0, module: '常识判断', questionType: '时政', question: '下列关于近期重要会议表述正确的是？', myAnswer: 'A', correctAnswer: 'C', errorType: '知识型', analysis: '需关注最新时政热点。', knowledgePoint: '时政热点' },
+    { offset: 1, module: '申论', questionType: '归纳概括', question: '根据给定资料，概括当前基层治理中存在的主要问题。（15分）', myAnswer: '只写了2点，漏了资金不足和人才流失', correctAnswer: '应从制度、资金、人才、技术四个维度概括，分条作答', errorType: '方法型', analysis: '归纳概括题需多角度提取要点，注意分条分类作答，每条用"核心词+展开说明"格式。', knowledgePoint: '归纳概括-多维度提取要点' },
   ];
   wrongSamples.forEach(s => {
     const date = daysAgoStr(s.offset);
@@ -3223,6 +3388,19 @@ function generateSampleData() {
     const cc = qc - Math.floor(Math.random() * 5) - 1;
     DB.studyRecords.push({ id: uid(), date, module, questionCount: qc, correctCount: cc, duration: 60 + i * 15 });
   }
+
+  // 申论练习
+  const shenlunSamples = [
+    { offset: 1, questionType: '归纳概括', duration: 35, score: 68, topic: '根据资料，概括当前基层治理中存在的主要问题。（15分）', myAnswer: '从制度、资金两个角度概括了问题', reference: '应从制度、资金、人才、技术四个维度概括，漏了人才和技术。分条不够清晰', materials: '基层治理、多元共治、网格化管理' },
+    { offset: 3, questionType: '大作文', duration: 60, score: 72, topic: '以"乡村振兴中的文化传承"为题写一篇议论文。（40分）', myAnswer: '围绕文化传承重要性展开，举了2个例子', reference: '论点明确但论据不够丰富，缺乏政策高度，结尾升华不足', materials: '乡村振兴战略、文化自信、乡风文明、留得住乡愁' },
+  ];
+  shenlunSamples.forEach(s => {
+    DB.shenlunPractices.push({
+      id: uid(), date: daysAgoStr(s.offset), questionType: s.questionType,
+      duration: s.duration, score: s.score, topic: s.topic,
+      myAnswer: s.myAnswer, reference: s.reference, materials: s.materials
+    });
+  });
 
   // 英语学生
   const students = [
@@ -3358,6 +3536,7 @@ function generateSampleData() {
 function init() {
   loadData();
   if (DB.wrongQuestions.length === 0 && DB.studyRecords.length === 0 &&
+      DB.shenlunPractices.length === 0 &&
       DB.englishStudents.length === 0 && DB.reviews.length === 0 &&
       DB.exercises.length === 0 && DB.books.length === 0 &&
       DB.putonghuaCourses.length === 0 && DB.students.length === 0) {
