@@ -199,6 +199,8 @@ body {
 .error-type-card.selected { border-color: #667eea; background: #f0f4ff; color: #4c51bf; }
 .error-type-card .et-title { font-weight: 600; margin-bottom: 3px; }
 .error-type-card .et-sub { font-size: 11px; opacity: 0.7; }
+.ai-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #c7d2fe; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .tag-gray { background: #edf2f7; color: #718096; }
 .tag-priority-high { background: #fed7d7; color: #c53030; }
 .tag-priority-mid { background: #fefcbf; color: #b7791f; }
@@ -439,7 +441,10 @@ body {
       <div class="nav-item" data-page="review" onclick="switchPage('review')"><span class="icon">📝</span>日常反思</div>
       <div class="nav-item" data-page="books" onclick="switchPage('books')"><span class="icon">📖</span>图书阅读</div>
     </nav>
-    <div class="sidebar-footer">数据本地存储 · v2.0</div>
+    <div class="sidebar-footer">
+      <div style="margin-bottom:8px;cursor:pointer;color:var(--text-secondary);font-size:12px;" onclick="openAIKeyModal()">🔑 豆包AI设置</div>
+      <div>数据本地存储 · v2.0</div>
+    </div>
   </aside>
 
   <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
@@ -512,12 +517,16 @@ body {
           <form id="wrongForm2" onsubmit="return false">
             <!-- 自动生成的解析 -->
             <div style="background:linear-gradient(135deg,#f0f4ff,#faf5ff);border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid #e0e7ff;">
-              <div style="font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-                <span>🤖</span> AI 辅助解析（可编辑修改）
+              <div style="font-weight:600;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+                <span style="display:flex;align-items:center;gap:6px;"><span>🤖</span> AI 辅助解析（可编辑修改）</span>
+                <button type="button" id="aiRegenBtn" class="btn btn-outline" style="padding:4px 12px;font-size:12px;" onclick="callDoubaoAI()">🔄 重新生成</button>
+              </div>
+              <div id="aiLoadingTip" style="display:none;padding:12px;background:white;border-radius:8px;margin-bottom:10px;text-align:center;color:#6366f1;font-size:13px;">
+                <span class="ai-spinner"></span> 豆包AI正在分析中，请稍候...
               </div>
               <div class="form-group">
                 <label>解析内容 *</label>
-                <textarea name="analysis" required rows="4" style="background:white;" placeholder="这里会生成解析思路，你可以直接修改"></textarea>
+                <textarea name="analysis" required rows="6" style="background:white;" placeholder="这里会自动生成AI解析，你可以直接修改"></textarea>
               </div>
               <div class="form-group" style="margin-bottom:0;">
                 <label>知识点</label>
@@ -1280,6 +1289,27 @@ body {
   </main>
 </div>
 
+<!-- 豆包API Key设置弹窗 -->
+<div id="aiKeyModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--card-bg);border-radius:12px;padding:24px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="font-size:18px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+      🔑 豆包AI设置
+    </div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;">
+      输入你的豆包API Key（火山引擎方舟平台获取），保存在本地浏览器中，不会上传。
+      <br>留空则使用模板解析模式。
+    </p>
+    <div class="form-group">
+      <label>API Key</label>
+      <input type="password" id="aiKeyInput" placeholder="ark-xxxxxxxxxxxxxxxx" style="width:100%;">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-outline" onclick="closeAIKeyModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveAIKey()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ===================== 数据管理 ===================== */
 const STORAGE_KEY = 'learningDashboard_v2';
@@ -1327,6 +1357,14 @@ function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
 }
 function uid() { return Date.now() + Math.floor(Math.random() * 10000); }
+
+/* ===================== 豆包AI配置 ===================== */
+const DOUBAO_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
+const DOUBAO_MODEL = 'doubao-pro-32k';
+const DOUBAO_KEY_STORE = 'doubao_api_key';
+function getDoubaoKey() { return localStorage.getItem(DOUBAO_KEY_STORE) || ''; }
+function setDoubaoKey(k) { localStorage.setItem(DOUBAO_KEY_STORE, k); }
+let _wrongStep1Data = {}; // 暂存第一步表单数据供AI调用
 
 /* ===================== 常量 ===================== */
 const CIVIL_MODULES = ['言语理解','数量关系','判断推理','资料分析','常识判断','申论'];
@@ -1551,11 +1589,12 @@ function goToStep2() {
   const correctAnswer = fd.get('correctAnswer') || '';
   const qType = fd.get('questionType') || '';
 
-  // 智能生成解析模板
+  // 暂存第一步数据供AI调用
+  _wrongStep1Data = { module, question, myAnswer, correctAnswer, qType };
+
+  // 先用模板预填充（作为fallback）
   const analysis = generateAnalysisTemplate(module, qType, question, myAnswer, correctAnswer);
   document.querySelector('#wrongForm2 textarea[name=analysis]').value = analysis;
-
-  // 推测知识点
   const kp = suggestKnowledgePoint(module, qType);
   document.querySelector('#wrongForm2 input[name=knowledgePoint]').value = kp;
 
@@ -1568,6 +1607,9 @@ function goToStep2() {
   document.getElementById('wrongStep2').style.display = 'block';
   document.getElementById('step1Badge').classList.remove('active');
   document.getElementById('step2Badge').classList.add('active');
+
+  // 自动调用豆包AI生成解析
+  callDoubaoAI();
 }
 
 function backToStep1() {
@@ -1664,6 +1706,115 @@ function suggestKnowledgePoint(module, qType) {
     '申论': '归纳概括/综合分析',
   };
   return map[module] || '';
+}
+
+/* ===================== 豆包AI自动分析 ===================== */
+function openAIKeyModal() {
+  document.getElementById('aiKeyInput').value = getDoubaoKey();
+  document.getElementById('aiKeyModal').style.display = 'flex';
+}
+function closeAIKeyModal() {
+  document.getElementById('aiKeyModal').style.display = 'none';
+}
+function saveAIKey() {
+  const key = document.getElementById('aiKeyInput').value.trim();
+  setDoubaoKey(key);
+  closeAIKeyModal();
+  if (key) {
+    alert('✅ API Key已保存！AI自动分析功能已启用。');
+  } else {
+    alert('API Key已清空，将使用模板解析模式。');
+  }
+}
+
+async function callDoubaoAI() {
+  const d = _wrongStep1Data;
+  if (!d || !d.question) return;
+
+  // 检查API Key
+  const apiKey = getDoubaoKey();
+  if (!apiKey) {
+    // 没有API Key，使用模板解析，提示用户
+    const loadingTip = document.getElementById('aiLoadingTip');
+    loadingTip.style.display = 'block';
+    loadingTip.innerHTML = '💡 未配置豆包API Key，当前为模板解析。点击左下角「🔑 豆包AI设置」配置后可启用AI自动分析。';
+    loadingTip.style.color = '#d69e2e';
+    setTimeout(() => { loadingTip.style.display = 'none'; }, 6000);
+    return;
+  }
+
+  const loadingTip = document.getElementById('aiLoadingTip');
+  const regenBtn = document.getElementById('aiRegenBtn');
+  const analysisEl = document.querySelector('#wrongForm2 textarea[name=analysis]');
+  const kpEl = document.querySelector('#wrongForm2 input[name=knowledgePoint]');
+
+  loadingTip.style.display = 'block';
+  regenBtn.disabled = true;
+  regenBtn.textContent = '⏳ 生成中...';
+
+  // 构建提示词
+  const systemPrompt = '你是一位经验丰富的公务员考试辅导老师，擅长行测和申论教学。请根据学生的错题信息，生成详细的解析。输出格式严格如下：\n\n【正确答案】...\n【我的答案】...\n【错因分析】分析学生为什么选错，指出具体的思维误区\n【解题思路】分步骤讲解，每步简明扼要\n【知识点积累】提炼本题核心知识点，用简洁的语言概括';
+  let userPrompt = `模块：${d.module}\n`;
+  if (d.qType) userPrompt += `题型：${d.qType}\n`;
+  userPrompt += `题目：${d.question}\n`;
+  if (d.myAnswer) userPrompt += `我的答案：${d.myAnswer}\n`;
+  userPrompt += `正确答案：${d.correctAnswer}\n\n请按照指定格式生成解析。`;
+
+  try {
+    const resp = await fetch(DOUBAO_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + getDoubaoKey()
+      },
+      body: JSON.stringify({
+        model: DOUBAO_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 2000
+      })
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('豆包API错误:', resp.status, errText);
+      throw new Error('API返回 ' + resp.status);
+    }
+
+    const data = await resp.json();
+    const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+
+    if (content) {
+      analysisEl.value = content.trim();
+      // 尝试提取知识点
+      const kpMatch = content.match(/【知识点积累】(.+?)(?=\n【|$)/s);
+      if (kpMatch) {
+        kpEl.value = kpMatch[1].trim().split('\n')[0].substring(0, 80);
+      }
+    } else {
+      throw new Error('AI返回内容为空');
+    }
+  } catch (err) {
+    console.error('豆包AI调用失败:', err);
+    // 保留模板内容，提示用户
+    loadingTip.innerHTML = '⚠️ AI分析失败（' + err.message + '），已使用模板解析，可点击重新生成或手动修改';
+    loadingTip.style.color = '#e53e3e';
+    setTimeout(() => {
+      loadingTip.style.display = 'none';
+      loadingTip.innerHTML = '<span class="ai-spinner"></span> 豆包AI正在分析中，请稍候...';
+      loadingTip.style.color = '#6366f1';
+    }, 5000);
+    regenBtn.disabled = false;
+    regenBtn.textContent = '🔄 重新生成';
+    return;
+  }
+
+  loadingTip.style.display = 'none';
+  regenBtn.disabled = false;
+  regenBtn.textContent = '🔄 重新生成';
 }
 
 function addWrongQuestionFinal() {
