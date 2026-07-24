@@ -1280,6 +1280,10 @@ body {
                 <option value="已读">已读</option>
               </select>
             </div>
+            <div class="form-group full">
+              <label>🔗 电子书链接</label>
+              <input type="text" name="bookLink" placeholder="粘贴飞书/网盘链接，留空则不显示">
+            </div>
           </div>
           <div class="form-actions">
             <button class="btn btn-primary" onclick="addBook()">💾 添加书籍</button>
@@ -3911,7 +3915,8 @@ function addBook() {
     currentPage: status === '已读' ? parseInt(fd.get('totalPages')) || 0 : 0,
     status: status,
     startDate: status === '在读' ? today : '',
-    finishDate: status === '已读' ? today : ''
+    finishDate: status === '已读' ? today : '',
+    bookLink: fd.get('bookLink') || ''
   };
   DB.books.push(book);
   saveData();
@@ -4021,6 +4026,7 @@ function renderBookList() {
             <span class="tag ${statusTag}">${b.status}</span>
             <span class="tag tag-gray">${b.totalPages}页</span>
           </div>
+          ${b.bookLink ? `<div style="margin-top:6px;"><a href="${escapeHtml(b.bookLink)}" target="_blank" style="color:#667eea;font-size:13px;text-decoration:none;">🔗 点击阅读电子书</a></div>` : ''}
         </div>
       </div>
       ${b.status === '在读' || b.status === '已读' ? `
