@@ -444,7 +444,12 @@ body {
     </nav>
     <div class="sidebar-footer">
       <div style="margin-bottom:8px;cursor:pointer;color:var(--text-secondary);font-size:12px;" onclick="openAIKeyModal()">🔑 豆包AI设置</div>
-      <div>数据本地存储 · v2.0</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+        <button class="btn btn-outline btn-sm" style="font-size:11px;padding:4px 8px;flex:1;" onclick="exportData()">📤 导出数据</button>
+        <button class="btn btn-outline btn-sm" style="font-size:11px;padding:4px 8px;flex:1;" onclick="document.getElementById('importFile').click()">📥 导入数据</button>
+      </div>
+      <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
+      <div>数据本地存储 · v2.1</div>
     </div>
   </aside>
 
@@ -1505,6 +1510,45 @@ function loadData() {
 }
 function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
+}
+function exportData() {
+  const dataStr = JSON.stringify(DB, null, 2);
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const today = todayStr();
+  a.href = url;
+  a.download = `learning-dashboard-backup-${today}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!confirm('导入数据将覆盖当前所有数据，确定继续吗？')) {
+    event.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!imported || typeof imported !== 'object') {
+        alert('文件格式错误，请确认是导出的数据文件');
+        return;
+      }
+      DB = imported;
+      saveData();
+      alert('数据导入成功！页面即将刷新');
+      location.reload();
+    } catch(err) {
+      alert('导入失败：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 function uid() { return Date.now() + Math.floor(Math.random() * 10000); }
 
