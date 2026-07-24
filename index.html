@@ -698,15 +698,27 @@ body {
               <textarea name="topic" required placeholder="如：根据资料，概括基层治理存在的问题（15分）" rows="2"></textarea>
             </div>
             <div class="form-group full">
+              <label>📍 题目所在位置</label>
+              <input type="text" name="location" placeholder="如：2024国考副省级 第1题 / 资料一">
+            </div>
+            <div class="form-group full">
               <label>我的作答要点</label>
               <textarea name="myAnswer" placeholder="分条记录你的作答要点" rows="3"></textarea>
             </div>
             <div class="form-group full">
-              <label>参考答案/失分点</label>
-              <textarea name="reference" placeholder="参考答案要点、自己的失分原因" rows="3"></textarea>
+              <label>✅ 标准答案</label>
+              <textarea name="reference" placeholder="参考答案的完整要点" rows="4"></textarea>
             </div>
             <div class="form-group full">
-              <label>积累的素材/金句</label>
+              <label>💭 题目反思</label>
+              <textarea name="reflection" placeholder="这道题为什么失分？下次怎么改进？" rows="3"></textarea>
+            </div>
+            <div class="form-group full">
+              <label>🧠 题目逻辑梳理</label>
+              <textarea name="logic" placeholder="梳理题干逻辑、材料逻辑、答题逻辑" rows="3"></textarea>
+            </div>
+            <div class="form-group full">
+              <label>📌 积累的素材/金句</label>
               <textarea name="materials" placeholder="好词好句、规范表述、政策热词" rows="2"></textarea>
             </div>
           </div>
@@ -2443,8 +2455,11 @@ function addShenlunPractice() {
     duration: parseInt(fd.get('duration')) || 0,
     score: fd.get('score') ? parseInt(fd.get('score')) : null,
     topic: fd.get('topic'),
+    location: fd.get('location') || '',
     myAnswer: fd.get('myAnswer') || '',
     reference: fd.get('reference') || '',
+    reflection: fd.get('reflection') || '',
+    logic: fd.get('logic') || '',
     materials: fd.get('materials') || ''
   };
   DB.shenlunPractices.push(p);
@@ -2461,6 +2476,83 @@ function deleteShenlunPractice(id) {
   saveData();
   renderShenlunStats();
   renderShenlunList();
+}
+
+/* ===== 申论编辑 ===== */
+function editShenlunPractice(id) {
+  const p = DB.shenlunPractices.find(x => x.id === id);
+  if (!p) return;
+  const form = document.getElementById('shenlunForm');
+  form.date.value = p.date || '';
+  form.questionType.value = p.questionType || '归纳概括';
+  form.duration.value = p.duration || 40;
+  form.score.value = p.score != null ? p.score : '';
+  form.topic.value = p.topic || '';
+  form.location.value = p.location || '';
+  form.myAnswer.value = p.myAnswer || '';
+  form.reference.value = p.reference || '';
+  form.reflection.value = p.reflection || '';
+  form.logic.value = p.logic || '';
+  form.materials.value = p.materials || '';
+  window.scrollTo({ top: document.getElementById('shenlunForm').offsetTop - 100, behavior: 'smooth' });
+  // 临时切换保存按钮为更新
+  const saveBtn = form.querySelector('button[onclick="addShenlunPractice()"]');
+  if (saveBtn) {
+    saveBtn.textContent = '💾 更新练习';
+    saveBtn.setAttribute('onclick', `updateShenlunPractice(${id})`);
+    const resetBtn = form.querySelector('button[onclick*="reset()"]');
+    if (resetBtn) {
+      resetBtn.textContent = '取消编辑';
+      resetBtn.setAttribute('onclick', `cancelShenlunEdit()`);
+    }
+  }
+}
+
+function updateShenlunPractice(id) {
+  const form = document.getElementById('shenlunForm');
+  const fd = new FormData(form);
+  const p = DB.shenlunPractices.find(x => x.id === id);
+  if (!p) return;
+  if (!fd.get('date') || !fd.get('questionType') || !fd.get('topic') || !fd.get('duration')) {
+    alert('请填写必填项（带 * 的字段）');
+    return;
+  }
+  p.date = fd.get('date');
+  p.questionType = fd.get('questionType');
+  p.duration = parseInt(fd.get('duration')) || 0;
+  p.score = fd.get('score') ? parseInt(fd.get('score')) : null;
+  p.topic = fd.get('topic');
+  p.location = fd.get('location') || '';
+  p.myAnswer = fd.get('myAnswer') || '';
+  p.reference = fd.get('reference') || '';
+  p.reflection = fd.get('reflection') || '';
+  p.logic = fd.get('logic') || '';
+  p.materials = fd.get('materials') || '';
+  saveData();
+  resetShenlunForm();
+  renderShenlunStats();
+  renderShenlunList();
+}
+
+function cancelShenlunEdit() {
+  resetShenlunForm();
+}
+
+function resetShenlunForm() {
+  const form = document.getElementById('shenlunForm');
+  form.reset();
+  setToday();
+  // 恢复按钮文字
+  const saveBtn = form.querySelector('button[onclick*="updateShenlunPractice"]');
+  if (saveBtn) {
+    saveBtn.textContent = '💾 保存练习';
+    saveBtn.setAttribute('onclick', 'addShenlunPractice()');
+  }
+  const resetBtn = form.querySelector('button[onclick*="cancelShenlunEdit"]');
+  if (resetBtn) {
+    resetBtn.textContent = '重置';
+    resetBtn.setAttribute('onclick', "document.getElementById('shenlunForm').reset();setToday()");
+  }
 }
 
 function renderShenlunStats() {
@@ -2503,22 +2595,55 @@ function renderShenlunList() {
     '贯彻执行': 'tag-orange', '大作文': 'tag-red'
   };
   el.innerHTML = list.map(p => `
-    <div class="list-item">
-      <div class="list-header">
-        <div style="flex:1;">
-          <div class="list-title">${p.date} <span class="tag ${typeColors[p.questionType] || 'tag-gray'}">${p.questionType}</span> ${p.score != null ? `<span class="tag tag-gray">自评 ${p.score}分</span>` : ''}</div>
-          <div class="list-meta"><span>⏱️ ${p.duration}分钟</span></div>
+    <div class="list-item" id="shenlun-${p.id}">
+      <div class="shenlun-summary" style="cursor:pointer;" onclick="toggleShenlunDetail(${p.id})">
+        <div class="list-header">
+          <div style="flex:1;">
+            <div class="list-title">
+              ${p.date}
+              <span class="tag ${typeColors[p.questionType] || 'tag-gray'}">${p.questionType}</span>
+              ${p.score != null ? `<span class="tag tag-gray">自评 ${p.score}分</span>` : ''}
+            </div>
+            <div class="list-meta">
+              <span>⏱️ ${p.duration}分钟</span>
+              ${p.location ? `<span>📍 ${escapeHtml(p.location)}</span>` : ''}
+              <span>📄 ${escapeHtml(p.topic.length > 40 ? p.topic.substring(0, 40) + '...' : p.topic)}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:4px;align-items:center;">
+            <span style="font-size:12px;color:var(--text-secondary);">点击展开</span>
+            <span id="shenlun-arrow-${p.id}" style="font-size:14px;transition:transform 0.2s;">▶</span>
+          </div>
         </div>
-        <button class="btn btn-danger btn-sm" onclick="deleteShenlunPractice(${p.id})">🗑️</button>
       </div>
-      <div style="margin-top:8px;font-size:13px;line-height:1.7;">
-        <div><b>题目：</b>${escapeHtml(p.topic)}</div>
-        ${p.myAnswer ? `<div style="margin-top:4px;"><b>我的要点：</b>${escapeHtml(p.myAnswer)}</div>` : ''}
-        ${p.reference ? `<div style="margin-top:4px;color:#e53e3e;"><b>参考/失分：</b>${escapeHtml(p.reference)}</div>` : ''}
-        ${p.materials ? `<div style="margin-top:4px;color:#805ad5;"><b>素材积累：</b>${escapeHtml(p.materials)}</div>` : ''}
+      <div id="shenlun-detail-${p.id}" class="shenlun-detail" style="display:none;margin-top:12px;padding:14px;background:rgba(255,255,255,0.6);border-radius:8px;border:1px solid var(--border);">
+        ${p.location ? `<div style="margin-bottom:8px;"><b>📍 题目位置：</b>${escapeHtml(p.location)}</div>` : ''}
+        <div style="margin-bottom:8px;"><b>📄 题目：</b>${escapeHtml(p.topic)}</div>
+        ${p.myAnswer ? `<div style="margin-bottom:8px;"><b>✏️ 我的作答要点：</b><div style="margin-top:4px;white-space:pre-wrap;">${escapeHtml(p.myAnswer)}</div></div>` : ''}
+        ${p.reference ? `<div style="margin-bottom:8px;"><b style="color:#38a169;">✅ 标准答案：</b><div style="margin-top:4px;white-space:pre-wrap;color:#22543d;">${escapeHtml(p.reference)}</div></div>` : ''}
+        ${p.reflection ? `<div style="margin-bottom:8px;"><b style="color:#e53e3e;">💭 题目反思：</b><div style="margin-top:4px;white-space:pre-wrap;color:#742a2a;">${escapeHtml(p.reflection)}</div></div>` : ''}
+        ${p.logic ? `<div style="margin-bottom:8px;"><b style="color:#805ad5;">🧠 逻辑梳理：</b><div style="margin-top:4px;white-space:pre-wrap;color:#553c9a;">${escapeHtml(p.logic)}</div></div>` : ''}
+        ${p.materials ? `<div style="margin-bottom:8px;"><b style="color:#b7791f;">📌 素材积累：</b><div style="margin-top:4px;white-space:pre-wrap;color:#744210;">${escapeHtml(p.materials)}</div></div>` : ''}
+        <div style="display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();editShenlunPractice(${p.id})">✏️ 编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteShenlunPractice(${p.id})">🗑️ 删除</button>
+        </div>
       </div>
     </div>
   `).join('');
+}
+
+function toggleShenlunDetail(id) {
+  const detail = document.getElementById('shenlun-detail-' + id);
+  const arrow = document.getElementById('shenlun-arrow-' + id);
+  if (!detail) return;
+  if (detail.style.display === 'none') {
+    detail.style.display = 'block';
+    if (arrow) arrow.style.transform = 'rotate(90deg)';
+  } else {
+    detail.style.display = 'none';
+    if (arrow) arrow.style.transform = '';
+  }
 }
 
 /* ===================== 2. 英语课堂 ===================== */
