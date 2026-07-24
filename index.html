@@ -15,6 +15,8 @@
   --card-bg: #ffffff;
   --text: #2d3748;
   --text-light: #718096;
+  --text-secondary: #a0aec0;
+  --border: #e2e8f0;
   --shadow: 0 4px 16px rgba(0,0,0,0.08);
   --shadow-hover: 0 8px 24px rgba(0,0,0,0.12);
   --radius: 12px;
@@ -188,6 +190,15 @@ body {
 .tag-orange { background: #fefcbf; color: #b7791f; }
 .tag-red { background: #fed7d7; color: #c53030; }
 .tag-purple { background: #faf5ff; color: #805ad5; }
+.step-badge { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+  background: var(--card-bg); color: var(--text-light); border: 1px solid var(--border); }
+.step-badge.active { background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; border-color: transparent; }
+.error-type-card { padding: 10px 12px; border: 2px solid var(--border); border-radius: 8px;
+  cursor: pointer; transition: all 0.2s; background: var(--card-bg); font-size: 13px; }
+.error-type-card:hover { border-color: #667eea; }
+.error-type-card.selected { border-color: #667eea; background: #f0f4ff; color: #4c51bf; }
+.error-type-card .et-title { font-weight: 600; margin-bottom: 3px; }
+.error-type-card .et-sub { font-size: 11px; opacity: 0.7; }
 .tag-gray { background: #edf2f7; color: #718096; }
 .tag-priority-high { background: #fed7d7; color: #c53030; }
 .tag-priority-mid { background: #fefcbf; color: #b7791f; }
@@ -443,70 +454,100 @@ body {
 
       <div class="card">
         <div class="card-title">
-          <span><span class="emoji">➕</span>添加错题</span>
-          <div style="display:flex;gap:6px;">
-            <button class="btn btn-sm btn-primary" onclick="setWrongFormMode('quick')" id="btnModeQuick">⚡ 快速录入</button>
-            <button class="btn btn-sm btn-outline" onclick="setWrongFormMode('full')" id="btnModeFull">📝 完整录入</button>
-          </div>
+          <span><span class="emoji">➕</span>添加错题 · 两步录入</span>
         </div>
-        <form id="wrongForm" onsubmit="return false">
-          <div class="form-grid">
-            <div class="form-group">
-              <label>日期 *</label>
-              <input type="date" name="date" required>
+        <!-- 步骤指示器 -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
+          <div id="step1Badge" class="step-badge active">① 录入题目</div>
+          <div style="flex:1;height:2px;background:var(--border);"></div>
+          <div id="step2Badge" class="step-badge">② 分析错因</div>
+        </div>
+
+        <!-- 第一步：录入题目 -->
+        <div id="wrongStep1">
+          <form id="wrongForm1" onsubmit="return false">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>日期 *</label>
+                <input type="date" name="date" required>
+              </div>
+              <div class="form-group">
+                <label>模块 *</label>
+                <select name="module" required onchange="suggestQuestionTypes()">
+                  <option value="言语理解">言语理解</option>
+                  <option value="数量关系">数量关系</option>
+                  <option value="判断推理">判断推理</option>
+                  <option value="资料分析">资料分析</option>
+                  <option value="常识判断">常识判断</option>
+                  <option value="申论">申论</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>题型</label>
+                <input type="text" name="questionType" list="qTypeList" placeholder="选填，如 基期量计算">
+                <datalist id="qTypeList"></datalist>
+              </div>
+              <div class="form-group full">
+                <label>题目内容 *</label>
+                <textarea name="question" required placeholder="粘贴或输入题目内容（截图可用微信/手机识字后粘贴）" rows="5"></textarea>
+              </div>
+              <div class="form-group">
+                <label>我的答案</label>
+                <input type="text" name="myAnswer" placeholder="我选的答案">
+              </div>
+              <div class="form-group">
+                <label>正确答案 *</label>
+                <input type="text" name="correctAnswer" required placeholder="正确答案">
+              </div>
             </div>
-            <div class="form-group">
-              <label>模块 *</label>
-              <select name="module" required>
-                <option value="言语理解">言语理解</option>
-                <option value="数量关系">数量关系</option>
-                <option value="判断推理">判断推理</option>
-                <option value="资料分析">资料分析</option>
-                <option value="常识判断">常识判断</option>
-                <option value="申论">申论</option>
-              </select>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="goToStep2()">➡️ 下一步：分析错因</button>
+              <button class="btn btn-outline" onclick="resetWrongForm()">重置</button>
             </div>
-            <div class="form-group full-mode">
-              <label>题型</label>
-              <input type="text" name="questionType" placeholder="如 基期量计算">
+          </form>
+        </div>
+
+        <!-- 第二步：分析错因 -->
+        <div id="wrongStep2" style="display:none;">
+          <form id="wrongForm2" onsubmit="return false">
+            <!-- 自动生成的解析 -->
+            <div style="background:linear-gradient(135deg,#f0f4ff,#faf5ff);border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid #e0e7ff;">
+              <div style="font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                <span>🤖</span> AI 辅助解析（可编辑修改）
+              </div>
+              <div class="form-group">
+                <label>解析内容 *</label>
+                <textarea name="analysis" required rows="4" style="background:white;" placeholder="这里会生成解析思路，你可以直接修改"></textarea>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label>知识点</label>
+                <input type="text" name="knowledgePoint" placeholder="如 基期量=现期量/(1+增长率)">
+              </div>
             </div>
-            <div class="form-group full">
-              <label>题目内容 *</label>
-              <textarea name="question" required placeholder="粘贴或输入题目内容（支持直接粘贴截图文字）" rows="4"></textarea>
+
+            <!-- 错因细分选择 -->
+            <div style="margin-bottom:16px;">
+              <div style="font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+                <span>🎯</span> 错误原因分类 *
+              </div>
+              <div id="errorTypeOptions" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;"></div>
             </div>
-            <div class="form-group">
-              <label>我的答案</label>
-              <input type="text" name="myAnswer" placeholder="我选的答案">
+
+            <!-- 反思填空 -->
+            <div style="margin-bottom:16px;">
+              <div style="font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+                <span>💭</span> 反思与总结
+              </div>
+              <textarea name="reflection" placeholder="这道题为什么错？下次怎么避免？学到了什么？" rows="3"></textarea>
             </div>
-            <div class="form-group">
-              <label>正确答案 *</label>
-              <input type="text" name="correctAnswer" required placeholder="正确答案">
+
+            <div class="form-actions">
+              <button class="btn btn-outline" onclick="backToStep1()">⬅️ 返回修改</button>
+              <button class="btn btn-primary" onclick="addWrongQuestionFinal()">💾 保存错题</button>
+              <button class="btn btn-success" onclick="addWrongQuestionAndNextFinal()">💾 保存并继续下一题</button>
             </div>
-            <div class="form-group full-mode">
-              <label>错误原因 *</label>
-              <select name="errorType" required>
-                <option value="知识型">知识型（不会/没记住）</option>
-                <option value="方法型">方法型（方法不对）</option>
-                <option value="审题型">审题型（看错题目）</option>
-                <option value="计算型">计算型（计算失误）</option>
-                <option value="粗心型">粗心型（低级失误）</option>
-              </select>
-            </div>
-            <div class="form-group full full-mode">
-              <label>解析 *</label>
-              <textarea name="analysis" required placeholder="解析过程" rows="3"></textarea>
-            </div>
-            <div class="form-group full full-mode">
-              <label>知识点</label>
-              <input type="text" name="knowledgePoint" placeholder="如 基期量=现期量/(1+增长率)">
-            </div>
-          </div>
-          <div class="form-actions">
-            <button class="btn btn-primary" onclick="addWrongQuestion()">💾 保存错题</button>
-            <button class="btn btn-success" onclick="addWrongQuestionAndNext()">💾 保存并继续下一题</button>
-            <button class="btn btn-outline" onclick="document.getElementById('wrongForm').reset();setToday()">重置</button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
 
       <div class="card">
@@ -520,6 +561,24 @@ body {
             <option value="资料分析">资料分析</option>
             <option value="常识判断">常识判断</option>
             <option value="申论">申论</option>
+          </select>
+          <select id="wrongFilterError" onchange="renderWrongList()">
+            <option value="">全部错因</option>
+            <option value="知识型-概念不清">知识型-概念不清</option>
+            <option value="知识型-公式记混">知识型-公式记混</option>
+            <option value="知识型-知识点遗忘">知识型-知识点遗忘</option>
+            <option value="方法型-思路错误">方法型-思路错误</option>
+            <option value="方法型-方法不会">方法型-方法不会</option>
+            <option value="方法型-技巧不熟">方法型-技巧不熟</option>
+            <option value="审题型-看错题目">审题型-看错题目</option>
+            <option value="审题型-漏看条件">审题型-漏看条件</option>
+            <option value="审题型-理解偏差">审题型-理解偏差</option>
+            <option value="计算型-计算错误">计算型-计算错误</option>
+            <option value="计算型-估算偏差">计算型-估算偏差</option>
+            <option value="计算型-单位错误">计算型-单位错误</option>
+            <option value="粗心型-笔误">粗心型-笔误</option>
+            <option value="粗心型-选错题号">粗心型-选错题号</option>
+            <option value="粗心型-低级失误">粗心型-低级失误</option>
           </select>
           <select id="wrongFilterReview" onchange="renderWrongList()">
             <option value="">全部状态</option>
@@ -549,6 +608,11 @@ body {
           <div class="card-title"><span><span class="emoji">🧩</span>复习掌握进度</span></div>
           <div id="reviewMasteryStats"></div>
         </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span><span class="emoji">🎯</span>错因分布统计</span></div>
+        <div id="errorTypeStats"></div>
       </div>
 
       <div class="card">
@@ -1267,6 +1331,41 @@ function uid() { return Date.now() + Math.floor(Math.random() * 10000); }
 /* ===================== 常量 ===================== */
 const CIVIL_MODULES = ['言语理解','数量关系','判断推理','资料分析','常识判断','申论'];
 const ERROR_TYPES = ['知识型','方法型','审题型','计算型','粗心型'];
+const ERROR_TYPE_DETAILS = {
+  '知识型': [
+    { value: '知识型-概念不清', label: '概念不清', sub: '知识点没理解透' },
+    { value: '知识型-公式记混', label: '公式记混', sub: '公式记错或用错' },
+    { value: '知识型-知识点遗忘', label: '知识点遗忘', sub: '学过但忘了' },
+  ],
+  '方法型': [
+    { value: '方法型-思路错误', label: '思路错误', sub: '解题方向不对' },
+    { value: '方法型-方法不会', label: '方法不会', sub: '没掌握解题方法' },
+    { value: '方法型-技巧不熟', label: '技巧不熟', sub: '秒杀技巧不会用' },
+  ],
+  '审题型': [
+    { value: '审题型-看错题目', label: '看错题目', sub: '题干关键字看错' },
+    { value: '审题型-漏看条件', label: '漏看条件', sub: '漏掉已知条件' },
+    { value: '审题型-理解偏差', label: '理解偏差', sub: '对题意理解错了' },
+  ],
+  '计算型': [
+    { value: '计算型-计算错误', label: '计算错误', sub: '加减乘除算错' },
+    { value: '计算型-估算偏差', label: '估算偏差', sub: '估算方法不对' },
+    { value: '计算型-单位错误', label: '单位错误', sub: '单位换算错了' },
+  ],
+  '粗心型': [
+    { value: '粗心型-笔误', label: '笔误', sub: '写的时候写错了' },
+    { value: '粗心型-选错题号', label: '选错题号', sub: '答案涂错/选错' },
+    { value: '粗心型-低级失误', label: '低级失误', sub: '不该错的错了' },
+  ],
+};
+const MODULE_QUESTION_TYPES = {
+  '言语理解': ['逻辑填空','片段阅读','语句排序','主旨概括','意图判断','细节理解','词语辨析'],
+  '数量关系': ['工程问题','行程问题','利润问题','排列组合','概率问题','几何问题','容斥问题','年龄问题','鸡兔同笼'],
+  '判断推理': ['图形推理','定义判断','类比推理','逻辑判断','加强削弱','真假推理','翻译推理'],
+  '资料分析': ['基期量计算','增长率计算','增长量计算','比重问题','平均数问题','倍数问题','综合分析'],
+  '常识判断': ['时政','法律','历史人文','科技','地理','经济','政治'],
+  '申论': ['归纳概括','综合分析','提出对策','贯彻执行','大作文'],
+};
 const REVIEW_INTERVALS = [1, 3, 7, 15, 30];
 const CHART_COLORS = ['#667eea','#43e97b','#fa709a','#fee140','#764ba2','#4facfe','#ff6b6b'];
 
@@ -1402,6 +1501,7 @@ function renderCivilPage() {
   renderSelfTestArea();
   renderModuleAccuracy();
   renderReviewMasteryStats();
+  renderErrorTypeStats();
   renderStudyRecordChart();
   renderStudyRecordList();
   renderShenlunStats();
@@ -1429,86 +1529,190 @@ function renderCivilStats() {
       <div class="stat-value">${s.value}</div>
     </div>`).join('');
 }
-function setWrongFormMode(mode) {
-  const quickBtn = document.getElementById('btnModeQuick');
-  const fullBtn = document.getElementById('btnModeFull');
-  const quickFields = document.querySelectorAll('.full-mode');
-  if (mode === 'quick') {
-    quickBtn.className = 'btn btn-sm btn-primary';
-    fullBtn.className = 'btn btn-sm btn-outline';
-    quickFields.forEach(f => f.style.display = 'none');
-  } else {
-    quickBtn.className = 'btn btn-sm btn-outline';
-    fullBtn.className = 'btn btn-sm btn-primary';
-    quickFields.forEach(f => f.style.display = 'flex');
-  }
+let selectedErrorType = '';
+
+function suggestQuestionTypes() {
+  const module = document.querySelector('#wrongForm1 select[name=module]').value;
+  const types = MODULE_QUESTION_TYPES[module] || [];
+  const dl = document.getElementById('qTypeList');
+  if (dl) dl.innerHTML = types.map(t => `<option value="${t}">`).join('');
 }
 
-function addWrongQuestion() {
-  const form = document.getElementById('wrongForm');
+function goToStep2() {
+  const form = document.getElementById('wrongForm1');
   const fd = new FormData(form);
   if (!fd.get('date') || !fd.get('module') || !fd.get('question') || !fd.get('correctAnswer')) {
     alert('请填写必填项：日期、模块、题目内容、正确答案');
     return;
   }
-  const date = fd.get('date');
-  const isQuickMode = document.getElementById('btnModeQuick').classList.contains('btn-primary');
-  let errorType = fd.get('errorType');
-  let analysis = fd.get('analysis');
-  if (isQuickMode) {
-    if (!errorType) {
-      const q = (fd.get('question') || '').toLowerCase();
-      const my = (fd.get('myAnswer') || '').trim();
-      const ca = (fd.get('correctAnswer') || '').trim();
-      if (my && my !== ca && (q.includes('计算') || q.includes('增长') || q.includes('基期') || q.includes('比重') || q.includes('平均'))) {
-        errorType = '计算型';
-      } else if (my && my !== ca) {
-        errorType = '方法型';
-      } else {
-        errorType = '知识型';
-      }
-    }
-    if (!analysis) {
-      analysis = '（待补充解析）';
-    }
+  const module = fd.get('module');
+  const question = fd.get('question') || '';
+  const myAnswer = fd.get('myAnswer') || '';
+  const correctAnswer = fd.get('correctAnswer') || '';
+  const qType = fd.get('questionType') || '';
+
+  // 智能生成解析模板
+  const analysis = generateAnalysisTemplate(module, qType, question, myAnswer, correctAnswer);
+  document.querySelector('#wrongForm2 textarea[name=analysis]').value = analysis;
+
+  // 推测知识点
+  const kp = suggestKnowledgePoint(module, qType);
+  document.querySelector('#wrongForm2 input[name=knowledgePoint]').value = kp;
+
+  // 渲染错因选项
+  renderErrorTypeOptions();
+  selectedErrorType = '';
+
+  // 切换步骤
+  document.getElementById('wrongStep1').style.display = 'none';
+  document.getElementById('wrongStep2').style.display = 'block';
+  document.getElementById('step1Badge').classList.remove('active');
+  document.getElementById('step2Badge').classList.add('active');
+}
+
+function backToStep1() {
+  document.getElementById('wrongStep1').style.display = 'block';
+  document.getElementById('wrongStep2').style.display = 'none';
+  document.getElementById('step1Badge').classList.add('active');
+  document.getElementById('step2Badge').classList.remove('active');
+}
+
+function resetWrongForm() {
+  document.getElementById('wrongForm1').reset();
+  document.getElementById('wrongForm2').reset();
+  selectedErrorType = '';
+  document.getElementById('wrongStep1').style.display = 'block';
+  document.getElementById('wrongStep2').style.display = 'none';
+  document.getElementById('step1Badge').classList.add('active');
+  document.getElementById('step2Badge').classList.remove('active');
+  setToday();
+  suggestQuestionTypes();
+}
+
+function renderErrorTypeOptions() {
+  const el = document.getElementById('errorTypeOptions');
+  let html = '';
+  ERROR_TYPES.forEach(big => {
+    const subs = ERROR_TYPE_DETAILS[big] || [];
+    html += `<div style="grid-column:1/-1;font-weight:600;font-size:13px;color:var(--text-secondary);margin-top:4px;">${big}</div>`;
+    subs.forEach(s => {
+      html += `<div class="error-type-card" data-value="${s.value}" onclick="selectErrorType('${s.value}')">
+        <div class="et-title">${s.label}</div>
+        <div class="et-sub">${s.sub}</div>
+      </div>`;
+    });
+  });
+  el.innerHTML = html;
+}
+
+function selectErrorType(val) {
+  selectedErrorType = val;
+  document.querySelectorAll('.error-type-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === val);
+  });
+}
+
+function generateAnalysisTemplate(module, qType, question, myAnswer, correctAnswer) {
+  const lines = [];
+  lines.push('【正确答案】' + correctAnswer);
+  if (myAnswer) {
+    lines.push('【我的答案】' + myAnswer);
+    lines.push('【错因分析】');
   }
-  if (!errorType) {
-    alert('请选择错误原因');
-    return;
+  lines.push('【解题思路】');
+  if (module === '资料分析') {
+    lines.push('1. 确定题型：' + (qType || '判断题型'));
+    lines.push('2. 定位数据：回到材料找相关数据');
+    lines.push('3. 列公式：' + (qType || '对应公式'));
+    lines.push('4. 计算/估算：注意单位和速算技巧');
+  } else if (module === '数量关系') {
+    lines.push('1. 审题：明确已知条件和所求');
+    lines.push('2. 确定方法：' + (qType || '对应解题方法'));
+    lines.push('3. 列式计算');
+    lines.push('4. 验证答案合理性');
+  } else if (module === '言语理解') {
+    lines.push('1. 分析文段结构：找到主旨句/关键词');
+    lines.push('2. 辨析选项：注意偷换概念、无中生有等陷阱');
+    lines.push('3. 择优选择：对比差异，选最优');
+  } else if (module === '判断推理') {
+    lines.push('1. 判断题型：' + (qType || '图形/定义/类比/逻辑'));
+    lines.push('2. 找规律/分析逻辑关系');
+    lines.push('3. 逐一排除错误选项');
+  } else if (module === '常识判断') {
+    lines.push('1. 考点分析：考察的知识点');
+    lines.push('2. 排除法：先排除明显错误选项');
+    lines.push('3. 蒙题技巧：长短法、绝对化表述等');
+  } else if (module === '申论') {
+    lines.push('1. 审题：明确作答范围、要求、字数');
+    lines.push('2. 找要点：回到材料中勾画关键词');
+    lines.push('3. 分类整理：同类合并，异类罗列');
+    lines.push('4. 书写答案：分条作答，条理清晰');
   }
-  if (!analysis) {
-    alert('请填写解析');
-    return;
+  lines.push('');
+  lines.push('（可在此处补充你自己的理解和总结）');
+  return lines.join('\n');
+}
+
+function suggestKnowledgePoint(module, qType) {
+  if (qType) return qType + '相关知识点';
+  const map = {
+    '言语理解': '逻辑填空/片段阅读/语句表达',
+    '数量关系': '数学运算核心方法',
+    '判断推理': '图形推理/逻辑判断',
+    '资料分析': '增长率/比重/平均数',
+    '常识判断': '时政/法律/历史人文',
+    '申论': '归纳概括/综合分析',
+  };
+  return map[module] || '';
+}
+
+function addWrongQuestionFinal() {
+  if (!selectedErrorType) {
+    alert('请选择错误原因分类');
+    return false;
   }
+  const form1 = document.getElementById('wrongForm1');
+  const form2 = document.getElementById('wrongForm2');
+  const fd1 = new FormData(form1);
+  const fd2 = new FormData(form2);
+  if (!fd2.get('analysis')) {
+    alert('请填写解析内容');
+    return false;
+  }
+  const date = fd1.get('date');
   const q = {
     id: uid(),
     date: date,
-    module: fd.get('module'),
-    questionType: fd.get('questionType') || '',
-    question: fd.get('question'),
-    myAnswer: fd.get('myAnswer') || '',
-    correctAnswer: fd.get('correctAnswer'),
-    errorType: errorType,
-    analysis: analysis,
-    knowledgePoint: fd.get('knowledgePoint') || '',
+    module: fd1.get('module'),
+    questionType: fd1.get('questionType') || '',
+    question: fd1.get('question'),
+    myAnswer: fd1.get('myAnswer') || '',
+    correctAnswer: fd1.get('correctAnswer'),
+    errorType: selectedErrorType,
+    analysis: fd2.get('analysis'),
+    knowledgePoint: fd2.get('knowledgePoint') || '',
+    reflection: fd2.get('reflection') || '',
     reviewStage: 0,
     nextReviewDate: dateOffset(date, REVIEW_INTERVALS[0]),
-    lastReviewDate: date
+    lastReviewDate: date,
+    wrongCount: 1,
   };
   DB.wrongQuestions.push(q);
   saveData();
+  resetWrongForm();
+  renderCivilPage();
   return true;
 }
 
-function addWrongQuestionAndNext() {
-  const form = document.getElementById('wrongForm');
-  const moduleVal = form.module.value;
-  const dateVal = form.date.value;
-  if (addWrongQuestion() === true) {
-    form.reset();
-    form.module.value = moduleVal;
-    form.date.value = dateVal;
-    form.question.focus();
+function addWrongQuestionAndNextFinal() {
+  const form1 = document.getElementById('wrongForm1');
+  const moduleVal = form1.module.value;
+  const dateVal = form1.date.value;
+  if (addWrongQuestionFinal() === true) {
+    resetWrongForm();
+    form1.module.value = moduleVal;
+    form1.date.value = dateVal;
+    suggestQuestionTypes();
     renderCivilPage();
   }
 }
@@ -1519,6 +1723,7 @@ function deleteWrongQuestion(id) {
   saveData();
   renderCivilPage();
 }
+
 function markReviewDone(id) {
   const q = DB.wrongQuestions.find(x => x.id === id);
   if (!q) return;
@@ -1532,11 +1737,14 @@ function markReviewDone(id) {
   saveData();
   renderCivilPage();
 }
+
 function renderWrongList() {
   const sMod = document.getElementById('wrongFilterModule').value;
+  const sErr = document.getElementById('wrongFilterError')?.value || '';
   const sRev = document.getElementById('wrongFilterReview').value;
   let list = DB.wrongQuestions.slice().sort((a,b) => (b.date||'').localeCompare(a.date||''));
   if (sMod) list = list.filter(q => q.module === sMod);
+  if (sErr) list = list.filter(q => q.errorType === sErr);
   if (sRev === 'due') list = list.filter(isReviewDue);
   else if (sRev === 'done') list = list.filter(q => (q.reviewStage||0) >= REVIEW_INTERVALS.length);
   else if (sRev === 'pending') list = list.filter(q => !isReviewDue(q) && (q.reviewStage||0) < REVIEW_INTERVALS.length);
@@ -1548,6 +1756,7 @@ function renderWrongList() {
   el.innerHTML = list.map(q => {
     const stage = reviewStageLabel(q);
     const due = isReviewDue(q);
+    const errTypeLabel = q.errorType || '未分类';
     return `
     <div class="list-item ${due ? 'review-due' : ''}">
       <div class="list-header">
@@ -1557,7 +1766,7 @@ function renderWrongList() {
             <span>${q.date}</span>
             <span class="tag tag-gray">${q.module}</span>
             ${q.questionType ? `<span class="tag tag-blue">${q.questionType}</span>` : ''}
-            <span class="tag tag-orange">${q.errorType}</span>
+            <span class="tag tag-orange">${errTypeLabel}</span>
             <span class="tag ${stage.cls}">${stage.text}</span>
             ${due ? '<span class="tag tag-red">今日待复习</span>' : ''}
           </div>
@@ -1568,6 +1777,7 @@ function renderWrongList() {
         <div>✅ 正确答案：<b style="color:#38a169">${escapeHtml(q.correctAnswer)}</b></div>
         <div style="margin-top:6px;">💡 解析：${escapeHtml(q.analysis || '')}</div>
         ${q.knowledgePoint ? `<div style="margin-top:4px;">📌 知识点：${escapeHtml(q.knowledgePoint)}</div>` : ''}
+        ${q.reflection ? `<div style="margin-top:4px;color:#805ad5;">💭 反思：${escapeHtml(q.reflection)}</div>` : ''}
       </div>
       <div class="list-actions">
         ${(q.reviewStage||0) < REVIEW_INTERVALS.length ? `<button class="btn btn-success btn-sm" onclick="markReviewDone(${q.id})">✅ 标记复习完成</button>` : ''}
@@ -1808,6 +2018,68 @@ function renderModuleAccuracy() {
       <div class="progress-bar"><div class="progress-fill ${cls}" style="width:${displayRate}%"></div></div>
     </div>`;
   }).join('');
+}
+
+function renderErrorTypeStats() {
+  const el = document.getElementById('errorTypeStats');
+  if (!el) return;
+  const total = DB.wrongQuestions.length;
+  if (total === 0) {
+    el.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="emoji">🎯</div><div style="font-size:13px;">暂无错题数据</div></div>';
+    return;
+  }
+
+  const bigTypeColors = {
+    '知识型': '#667eea',
+    '方法型': '#43e97b',
+    '审题型': '#fa709a',
+    '计算型': '#fee140',
+    '粗心型': '#a0aec0',
+  };
+
+  let html = '<div style="margin-bottom:16px;">';
+  html += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;">📊 按错因大类分布</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px;">';
+  ERROR_TYPES.forEach(big => {
+    const count = DB.wrongQuestions.filter(q => q.errorType && q.errorType.startsWith(big)).length;
+    const pct = total > 0 ? Math.round(count / total * 100) : 0;
+    const color = bigTypeColors[big] || '#a0aec0';
+    html += `<div style="padding:10px 12px;background:${color}15;border-radius:8px;border-left:3px solid ${color};">
+      <div style="font-size:12px;color:var(--text-light);">${big}</div>
+      <div style="font-size:20px;font-weight:700;color:var(--text);">${count} <span style="font-size:12px;font-weight:400;color:var(--text-light);">${pct}%</span></div>
+    </div>`;
+  });
+  html += '</div></div>';
+
+  html += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;">🔍 细分错因排行</div>';
+  const detailCounts = {};
+  DB.wrongQuestions.forEach(q => {
+    if (q.errorType) {
+      detailCounts[q.errorType] = (detailCounts[q.errorType] || 0) + 1;
+    }
+  });
+  const sortedDetails = Object.entries(detailCounts).sort((a,b) => b[1] - a[1]).slice(0, 10);
+  const maxCount = sortedDetails.length > 0 ? sortedDetails[0][1] : 1;
+
+  html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+  sortedDetails.forEach(([type, count]) => {
+    const pct = total > 0 ? Math.round(count / total * 100) : 0;
+    const barPct = maxCount > 0 ? Math.round(count / maxCount * 100) : 0;
+    const bigType = type.split('-')[0];
+    const color = bigTypeColors[bigType] || '#a0aec0';
+    html += `<div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+        <span>${type}</span>
+        <span style="color:var(--text-light);">${count}题 · ${pct}%</span>
+      </div>
+      <div style="height:8px;background:#edf2f7;border-radius:4px;overflow:hidden;">
+        <div style="height:100%;width:${barPct}%;background:${color};border-radius:4px;"></div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+
+  el.innerHTML = html;
 }
 function addStudyRecord() {
   const form = document.getElementById('studyForm');
