@@ -1435,7 +1435,7 @@ function uid() { return Date.now() + Math.floor(Math.random() * 10000); }
 
 /* ===================== 豆包AI配置 ===================== */
 const DOUBAO_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
-const DOUBAO_MODEL = 'doubao-pro-32k';
+const DOUBAO_MODEL = 'doubao-seed-2-0-lite-260428';
 const DOUBAO_KEY_STORE = 'doubao_api_key';
 function getDoubaoKey() { return localStorage.getItem(DOUBAO_KEY_STORE) || ''; }
 function setDoubaoKey(k) { localStorage.setItem(DOUBAO_KEY_STORE, k); }
