@@ -1310,6 +1310,69 @@ body {
   </div>
 </div>
 
+<!-- 错题编辑弹窗 -->
+<div id="wrongEditModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--card-bg);border-radius:12px;padding:24px;max-width:560px;width:90%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="font-size:18px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+      ✏️ 编辑错题
+    </div>
+    <input type="hidden" id="editWrongId">
+    <div class="form-group">
+      <label>日期</label>
+      <input type="date" id="editWrongDate" style="width:100%;">
+    </div>
+    <div class="form-group">
+      <label>模块</label>
+      <select id="editWrongModule" style="width:100%;">
+        <option value="言语理解">言语理解</option>
+        <option value="数量关系">数量关系</option>
+        <option value="判断推理">判断推理</option>
+        <option value="资料分析">资料分析</option>
+        <option value="常识判断">常识判断</option>
+        <option value="申论">申论</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>题型</label>
+      <input type="text" id="editWrongQuestionType" placeholder="如 片段阅读" style="width:100%;">
+    </div>
+    <div class="form-group">
+      <label>题目内容</label>
+      <textarea id="editWrongQuestion" rows="3" style="width:100%;"></textarea>
+    </div>
+    <div class="form-group">
+      <label>我的答案</label>
+      <input type="text" id="editWrongMyAnswer" style="width:100%;">
+    </div>
+    <div class="form-group">
+      <label>正确答案</label>
+      <input type="text" id="editWrongCorrectAnswer" style="width:100%;">
+    </div>
+    <div class="form-group">
+      <label>解析</label>
+      <textarea id="editWrongAnalysis" rows="4" style="width:100%;"></textarea>
+    </div>
+    <div class="form-group">
+      <label>知识点</label>
+      <input type="text" id="editWrongKnowledgePoint" style="width:100%;">
+    </div>
+    <div class="form-group">
+      <label>反思</label>
+      <textarea id="editWrongReflection" rows="2" style="width:100%;"></textarea>
+    </div>
+    <div class="form-group">
+      <label>错因类型</label>
+      <select id="editWrongErrorType" style="width:100%;">
+        <option value="">请选择</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-outline" onclick="closeWrongEditModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveWrongEdit()">💾 保存修改</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ===================== 数据管理 ===================== */
 const STORAGE_KEY = 'learningDashboard_v2';
@@ -1875,6 +1938,61 @@ function deleteWrongQuestion(id) {
   renderCivilPage();
 }
 
+/* ===== 错题编辑 ===== */
+function editWrongQuestion(id) {
+  const q = DB.wrongQuestions.find(x => x.id === id);
+  if (!q) return;
+  document.getElementById('editWrongId').value = q.id;
+  document.getElementById('editWrongDate').value = q.date || '';
+  document.getElementById('editWrongModule').value = q.module || '言语理解';
+  document.getElementById('editWrongQuestionType').value = q.questionType || '';
+  document.getElementById('editWrongQuestion').value = q.question || '';
+  document.getElementById('editWrongMyAnswer').value = q.myAnswer || '';
+  document.getElementById('editWrongCorrectAnswer').value = q.correctAnswer || '';
+  document.getElementById('editWrongAnalysis').value = q.analysis || '';
+  document.getElementById('editWrongKnowledgePoint').value = q.knowledgePoint || '';
+  document.getElementById('editWrongReflection').value = q.reflection || '';
+  populateEditWrongErrorType(q.errorType || '');
+  document.getElementById('wrongEditModal').style.display = 'flex';
+}
+
+function populateEditWrongErrorType(selectedValue) {
+  const sel = document.getElementById('editWrongErrorType');
+  let html = '<option value="">请选择</option>';
+  ERROR_TYPES.forEach(big => {
+    const subs = ERROR_TYPE_DETAILS[big] || [];
+    html += `<optgroup label="${big}">`;
+    subs.forEach(s => {
+      html += `<option value="${s.value}" ${s.value === selectedValue ? 'selected' : ''}>${s.label} - ${s.sub}</option>`;
+    });
+    html += '</optgroup>';
+  });
+  sel.innerHTML = html;
+}
+
+function closeWrongEditModal() {
+  document.getElementById('wrongEditModal').style.display = 'none';
+}
+
+function saveWrongEdit() {
+  const id = parseInt(document.getElementById('editWrongId').value, 10);
+  const q = DB.wrongQuestions.find(x => x.id === id);
+  if (!q) return;
+  q.date = document.getElementById('editWrongDate').value;
+  q.module = document.getElementById('editWrongModule').value;
+  q.questionType = document.getElementById('editWrongQuestionType').value.trim();
+  q.question = document.getElementById('editWrongQuestion').value.trim();
+  q.myAnswer = document.getElementById('editWrongMyAnswer').value.trim();
+  q.correctAnswer = document.getElementById('editWrongCorrectAnswer').value.trim();
+  q.analysis = document.getElementById('editWrongAnalysis').value.trim();
+  q.knowledgePoint = document.getElementById('editWrongKnowledgePoint').value.trim();
+  q.reflection = document.getElementById('editWrongReflection').value.trim();
+  q.errorType = document.getElementById('editWrongErrorType').value;
+  saveData();
+  closeWrongEditModal();
+  renderCivilPage();
+}
+
 function markReviewDone(id) {
   const q = DB.wrongQuestions.find(x => x.id === id);
   if (!q) return;
@@ -1932,6 +2050,7 @@ function renderWrongList() {
       </div>
       <div class="list-actions">
         ${(q.reviewStage||0) < REVIEW_INTERVALS.length ? `<button class="btn btn-success btn-sm" onclick="markReviewDone(${q.id})">✅ 标记复习完成</button>` : ''}
+        <button class="btn btn-primary btn-sm" onclick="editWrongQuestion(${q.id})">✏️ 编辑</button>
         <button class="btn btn-danger btn-sm" onclick="deleteWrongQuestion(${q.id})">🗑️ 删除</button>
       </div>
     </div>`;
