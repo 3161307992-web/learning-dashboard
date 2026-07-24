@@ -1172,17 +1172,6 @@ body {
     <section class="page" id="page-review">
       <div class="page-title"><span class="emoji">📝</span>日常反思</div>
 
-      <!-- AI自动总结卡片 -->
-      <div class="card" style="background:linear-gradient(135deg,#f0f4ff,#faf5ff);border-left:4px solid var(--primary-1);">
-        <div class="card-title"><span><span class="emoji">🤖</span>AI 自动反思总结</span></div>
-        <p style="font-size:13px;color:var(--text-light);margin-bottom:14px;">根据今天公务员学习的<strong>错题记录</strong>和<strong>学习记录</strong>，自动分析问题并生成反思报告</p>
-        <div class="form-actions" style="margin-top:0;">
-          <button class="btn btn-primary" onclick="autoGenerateReview()">🔍 生成今日反思</button>
-          <button class="btn btn-outline" onclick="autoGenerateReview(1)">📊 生成本周反思</button>
-        </div>
-        <div id="autoReviewResult" style="margin-top:16px;"></div>
-      </div>
-
       <div class="card">
         <div class="card-title"><span><span class="emoji">➕</span>每日复盘</span></div>
         <form id="reviewForm" onsubmit="return false">
@@ -1191,41 +1180,51 @@ body {
               <label>日期 *</label>
               <input type="date" name="date" required>
             </div>
+            <div class="form-group">
+              <label>效率自评（1-10分）</label>
+              <select name="efficiencyRating">
+                <option value="10">10 - 状态极佳</option>
+                <option value="9">9 - 非常专注</option>
+                <option value="8">8 - 高效完成</option>
+                <option value="7">7 - 比较投入</option>
+                <option value="6">6 - 一般</option>
+                <option value="5">5 - 略显疲惫</option>
+                <option value="4">4 - 注意力不集中</option>
+                <option value="3">3 - 效率较低</option>
+                <option value="2">2 - 几乎无产出</option>
+                <option value="1">1 - 完全没状态</option>
+              </select>
+            </div>
           </div>
-          <h4 style="margin:16px 0 10px;color:var(--primary-1);font-size:14px;">📚 公务员学习</h4>
+
+          <h4 style="margin:16px 0 10px;color:var(--primary-1);font-size:14px;">📋 今日完成情况（系统自动生成）</h4>
           <div class="form-grid">
-            <div class="form-group full"><label>学习内容</label><textarea name="civilContent" placeholder="今天学了什么"></textarea></div>
-            <div class="form-group"><label>时长(分钟)</label><input type="number" name="civilDuration" value="0" min="0"></div>
+            <div class="form-group full">
+              <div style="display:flex;gap:8px;align-items:flex-start;">
+                <textarea name="todayCompletion" placeholder="点击下方按钮，系统将自动汇总今日各模块的学习/教学/运动/阅读数据" style="min-height:90px;flex:1;"></textarea>
+              </div>
+              <div class="form-actions" style="margin-top:8px;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="autoFillTodayCompletion()">🔄 自动生成今日完成情况</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('reviewForm').todayCompletion.value=''">清空</button>
+              </div>
+            </div>
           </div>
-          <h4 style="margin:16px 0 10px;color:#319795;font-size:14px;">🇬🇧 英语学习</h4>
-          <div class="form-grid">
-            <div class="form-group full"><label>学习内容</label><textarea name="englishContent" placeholder="如 背单词、听力练习"></textarea></div>
-            <div class="form-group"><label>时长(分钟)</label><input type="number" name="englishDuration" value="0" min="0"></div>
-          </div>
-          <h4 style="margin:16px 0 10px;color:#718096;font-size:14px;">💼 工作内容</h4>
-          <div class="form-grid">
-            <div class="form-group full"><label>工作内容</label><textarea name="workContent" placeholder="今日工作"></textarea></div>
-            <div class="form-group"><label>时长(分钟)</label><input type="number" name="workDuration" value="0" min="0"></div>
-          </div>
-          <h4 style="margin:16px 0 10px;color:#fa709a;font-size:14px;">🏃 运动情况</h4>
-          <div class="form-grid">
-            <div class="form-group full"><label>运动情况</label><textarea name="exerciseContent" placeholder="今日运动"></textarea></div>
-          </div>
+
           <div class="form-grid" style="margin-top:16px;">
-            <div class="form-group full"><label>今日收获</label><textarea name="gains" placeholder="学到了什么"></textarea></div>
-            <div class="form-group full"><label>今日不足</label><textarea name="shortcomings" placeholder="哪里可以改进"></textarea></div>
-            <div class="form-group full"><label>明日计划</label><textarea name="tomorrowPlan" placeholder="明天要做什么"></textarea></div>
+            <div class="form-group full"><label>关键反思</label><textarea name="keyReflection" placeholder="今天最值得反思的点（做得好的/做得不好的）"></textarea></div>
+            <div class="form-group full"><label>明日改进</label><textarea name="tomorrowImprovement" placeholder="明天打算如何调整和改进"></textarea></div>
+            <div class="form-group full"><label>总结</label><textarea name="summary" placeholder="一句话总结今天"></textarea></div>
           </div>
           <div class="form-actions">
             <button class="btn btn-primary" onclick="addReview()">💾 保存复盘</button>
-            <button class="btn btn-outline" onclick="document.getElementById('reviewForm').reset();setToday()">重置</button>
+            <button class="btn btn-outline" onclick="document.getElementById('reviewForm').reset();setToday();document.getElementById('reviewForm').efficiencyRating.value='8'">重置</button>
           </div>
         </form>
       </div>
 
       <div class="grid-2">
         <div class="card">
-          <div class="card-title"><span><span class="emoji">📊</span>本周复盘概览（每日学习时长）</span></div>
+          <div class="card-title"><span><span class="emoji">📊</span>本周效率自评</span></div>
           <div class="chart-container"><canvas id="chartReviewWeek"></canvas></div>
         </div>
         <div class="card">
@@ -1476,6 +1475,33 @@ function loadData() {
   }
   if (!DB.dailyNews || typeof DB.dailyNews !== 'object') DB.dailyNews = {};
   if (!DB.dailyQuotes || typeof DB.dailyQuotes !== 'object') DB.dailyQuotes = {};
+  // 迁移旧版复盘数据（civilService/english/work/exercise/gains/shortcomings/tomorrowPlan → 新字段）
+  if (Array.isArray(DB.reviews)) {
+    DB.reviews.forEach(r => {
+      if (r.todayCompletion === undefined && (r.civilService || r.english || r.work || r.exercise)) {
+        const parts = [];
+        if (r.civilService && r.civilService.content) parts.push(`📚 公务员学习：${r.civilService.content}（${r.civilService.duration||0}分钟）`);
+        if (r.english && r.english.content) parts.push(`🇬🇧 英语学习：${r.english.content}（${r.english.duration||0}分钟）`);
+        if (r.work && r.work.content) parts.push(`💼 工作内容：${r.work.content}（${r.work.duration||0}分钟）`);
+        if (r.exercise && r.exercise.content) parts.push(`🏃 运动锻炼：${r.exercise.content}`);
+        r.todayCompletion = parts.length > 0 ? `📅 ${r.date||''} 完成情况：\n${parts.join('\n')}` : '';
+        delete r.civilService; delete r.english; delete r.work; delete r.exercise;
+      }
+      if (r.keyReflection === undefined) {
+        const kr = [];
+        if (r.gains) kr.push('收获：' + r.gains);
+        if (r.shortcomings) kr.push('不足：' + r.shortcomings);
+        r.keyReflection = kr.join('；');
+        delete r.gains; delete r.shortcomings;
+      }
+      if (r.tomorrowImprovement === undefined && r.tomorrowPlan !== undefined) {
+        r.tomorrowImprovement = r.tomorrowPlan;
+        delete r.tomorrowPlan;
+      }
+      if (r.efficiencyRating === undefined) r.efficiencyRating = 0;
+      if (r.summary === undefined) r.summary = '';
+    });
+  }
 }
 function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
@@ -3437,362 +3463,102 @@ function renderReviewPage() {
   renderReviewCharts();
 }
 
-/* ===== AI 自动反思总结 ===== */
-function autoGenerateReview(weekMode) {
-  const today = todayStr();
-  let dateList;
-  let title;
-  if (weekMode) {
-    dateList = [];
-    for (let i = 6; i >= 0; i--) dateList.push(daysAgoStr(i));
-    title = '📊 本周公务员学习反思总结（最近7天）';
-  } else {
-    dateList = [today];
-    title = '🔍 今日公务员学习反思总结（' + friendlyDate(today) + '）';
-  }
-
-  // 提取范围内的学习记录和错题
-  const studyRecords = DB.studyRecords.filter(r => dateList.includes(r.date));
-  const wrongQuestions = DB.wrongQuestions.filter(q => dateList.includes(q.date));
-
-  if (studyRecords.length === 0 && wrongQuestions.length === 0) {
-    document.getElementById('autoReviewResult').innerHTML =
-      '<div class="empty-state"><div class="emoji">📭</div><div>该时间段暂无公务员学习数据，请先在「公务员学习」模块添加学习记录或错题</div></div>';
-    return;
-  }
-
-  // --- 数据汇总 ---
-  let totalQuestions = 0, totalCorrect = 0, totalDuration = 0;
-  const moduleStats = {}; // {模块: {questions, correct, duration, wrongs:[]}}
-  const errorTypeCount = {}; // {错误类型: 数量}
-
-  studyRecords.forEach(r => {
-    totalQuestions += r.questionCount || 0;
-    totalCorrect += r.correctCount || 0;
-    totalDuration += r.duration || 0;
-    const m = r.module || '未分类';
-    if (!moduleStats[m]) moduleStats[m] = { questions: 0, correct: 0, duration: 0, wrongs: [] };
-    moduleStats[m].questions += r.questionCount || 0;
-    moduleStats[m].correct += r.correctCount || 0;
-    moduleStats[m].duration += r.duration || 0;
-  });
-
-  wrongQuestions.forEach(q => {
-    const m = q.module || '未分类';
-    if (!moduleStats[m]) moduleStats[m] = { questions: 0, correct: 0, duration: 0, wrongs: [] };
-    moduleStats[m].wrongs.push(q);
-    const et = q.errorType || '未分类';
-    errorTypeCount[et] = (errorTypeCount[et] || 0) + 1;
-  });
-
-  const accuracy = totalQuestions > 0 ? Math.round(totalCorrect / totalQuestions * 100) : 0;
-  const wrongCount = wrongQuestions.length;
-
-  // --- 生成分析内容 ---
-
-  // 1. 学习概览
-  let overviewHtml = `
-    <div class="ai-review-section">
-      <div class="ai-review-label">📈 学习概览</div>
-      <div class="ai-review-content">
-        ${weekMode ? '本周' : '今日'}共学习 <strong>${totalDuration}</strong> 分钟，做题 <strong>${totalQuestions}</strong> 题，
-        正确 <strong>${totalCorrect}</strong> 题，错题 <strong>${wrongCount}</strong> 道，整体正确率 <strong>${accuracy}%</strong>。
-      </div>
-    </div>`;
-
-  // 2. 各模块表现
-  let moduleHtml = '<div class="ai-review-section"><div class="ai-review-label">📚 各模块表现</div><div class="ai-review-content">';
-  const moduleNames = {
-    '言语理解': '🗣️', '数量关系': '🔢', '判断推理': '🧩', '资料分析': '📊', '常识判断': '📖', '申论': '✍️'
-  };
-  Object.keys(moduleStats).forEach(m => {
-    const s = moduleStats[m];
-    const acc = s.questions > 0 ? Math.round(s.correct / s.questions * 100) : 0;
-    const accColor = acc >= 80 ? '#38b2ac' : acc >= 60 ? '#d69e2e' : '#e53e3e';
-    const wrongInfo = s.wrongs.length > 0 ? `，错题 ${s.wrongs.length} 道` : '';
-    moduleHtml += `<div style="margin-bottom:6px;">${moduleNames[m] || '📌'} <strong>${m}</strong>：做题 ${s.questions} 题，正确率 <span style="color:${accColor};font-weight:600;">${acc}%</span>${wrongInfo}，学习 ${s.duration} 分钟</div>`;
-  });
-  moduleHtml += '</div></div>';
-
-  // 3. 错题分析
-  let wrongAnalysisHtml = '';
-  if (wrongCount > 0) {
-    wrongAnalysisHtml = '<div class="ai-review-section"><div class="ai-review-label">❌ 错题分析</div><div class="ai-review-content">';
-
-    // 错误类型分布
-    wrongAnalysisHtml += '<div style="margin-bottom:10px;"><strong>错误原因分布：</strong></div>';
-    const errorTypeMap = {
-      '知识型': '知识点不会/没记住 → 建议：回归教材，制作知识点卡片',
-      '方法型': '解题方法不对 → 建议：总结方法套路，专项练习同类题',
-      '审题型': '看错题目/漏条件 → 建议：圈画关键词，刻意练习审题',
-      '计算型': '计算失误/公式错 → 建议：打草稿，加强计算基本功',
-      '粗心型': '低级失误/笔误 → 建议：做完快速回查，培养检查习惯'
-    };
-    Object.keys(errorTypeCount).forEach(et => {
-      const count = errorTypeCount[et];
-      const pct = Math.round(count / wrongCount * 100);
-      wrongAnalysisHtml += `<div style="margin-bottom:4px;">• <strong>${et}</strong>：${count} 道（${pct}%）— ${errorTypeMap[et] || ''}</div>`;
-    });
-
-    // 薄弱模块
-    const moduleWrongCount = {};
-    wrongQuestions.forEach(q => {
-      const m = q.module || '未分类';
-      moduleWrongCount[m] = (moduleWrongCount[m] || 0) + 1;
-    });
-    const sortedModules = Object.keys(moduleWrongCount).sort((a, b) => moduleWrongCount[b] - moduleWrongCount[a]);
-    wrongAnalysisHtml += '<div style="margin-top:10px;"><strong>错题最多的模块：</strong></div>';
-    sortedModules.forEach((m, i) => {
-      const medal = ['🥇', '🥈', '🥉'][i] || '•';
-      wrongAnalysisHtml += `<div>${medal} <strong>${m}</strong>：${moduleWrongCount[m]} 道错题</div>`;
-    });
-
-    // 具体错题列表
-    wrongAnalysisHtml += '<div style="margin-top:10px;"><strong>错题清单：</strong></div>';
-    wrongQuestions.forEach((q, i) => {
-      const shortQ = (q.question || '').substring(0, 50) + ((q.question || '').length > 50 ? '...' : '');
-      wrongAnalysisHtml += `<div style="margin-bottom:4px;padding:6px 8px;background:#fff;border-radius:6px;font-size:12px;">
-        ${i + 1}. [${q.module}] ${escapeHtml(shortQ)}<br>
-        <span style="color:#e53e3e;">我的答案：${escapeHtml(q.myAnswer || '')}</span> → <span style="color:#38b2ac;">正确：${escapeHtml(q.correctAnswer || '')}</span>
-        <span class="tag tag-red" style="margin-left:4px;">${q.errorType || ''}</span>
-      </div>`;
-    });
-
-    wrongAnalysisHtml += '</div></div>';
-  }
-
-  // 4. 问题总结
-  let problemsHtml = '<div class="ai-review-section"><div class="ai-review-label">⚠️ 发现的问题</div><div class="ai-review-content">';
-  const problems = [];
-
-  // 正确率问题
-  if (accuracy < 60 && totalQuestions > 0) {
-    problems.push(`整体正确率仅 <strong>${accuracy}%</strong>，低于60%的及格线，需要重点加强基础知识的巩固。`);
-  } else if (accuracy >= 60 && accuracy < 80 && totalQuestions > 0) {
-    problems.push(`整体正确率 <strong>${accuracy}%</strong>，还有提升空间，建议针对薄弱模块专项突破。`);
-  } else if (accuracy >= 80 && totalQuestions > 0) {
-    problems.push(`整体正确率 <strong>${accuracy}%</strong>，表现不错，继续保持！但要注意错题的归纳复习。`);
-  }
-
-  // 错误类型问题
-  if (errorTypeCount['计算型'] && errorTypeCount['计算型'] >= 2) {
-    problems.push(`计算型错误有 <strong>${errorTypeCount['计算型']}</strong> 道，计算基本功需要加强，建议每题都打草稿，做完检查一遍。`);
-  }
-  if (errorTypeCount['粗心型'] && errorTypeCount['粗心型'] >= 2) {
-    problems.push(`粗心型错误有 <strong>${errorTypeCount['粗心型']}</strong> 道，低级失误太多，建议养成做完回查的习惯。`);
-  }
-  if (errorTypeCount['知识型'] && errorTypeCount['知识型'] >= 2) {
-    problems.push(`知识型错误有 <strong>${errorTypeCount['知识型']}</strong> 道，说明基础知识有漏洞，建议回归教材系统复习。`);
-  }
-  if (errorTypeCount['审题型'] && errorTypeCount['审题型'] >= 1) {
-    problems.push(`审题型错误有 <strong>${errorTypeCount['审题型']}</strong> 道，建议审题时圈画关键词，不要急于动笔。`);
-  }
-  if (errorTypeCount['方法型'] && errorTypeCount['方法型'] >= 1) {
-    problems.push(`方法型错误有 <strong>${errorTypeCount['方法型']}</strong> 道，解题方法需要总结，建议建立各题型的方法套路笔记。`);
-  }
-
-  // 学习时长问题
-  if (weekMode) {
-    const avgDaily = Math.round(totalDuration / 7);
-    if (avgDaily < 120) {
-      problems.push(`本周平均每天学习 ${avgDaily} 分钟，时长偏少，建议每天至少保证 2 小时有效学习时间。`);
-    } else if (avgDaily >= 120 && avgDaily < 240) {
-      problems.push(`本周平均每天学习 ${avgDaily} 分钟，时长适中，可以考虑适当增加。`);
-    } else {
-      problems.push(`本周平均每天学习 ${avgDaily} 分钟，学习强度较大，注意劳逸结合，避免疲劳战。`);
-    }
-  } else {
-    if (totalDuration > 0 && totalDuration < 120) {
-      problems.push(`今日学习 ${totalDuration} 分钟，时长偏少，建议至少保证 2 小时有效学习。`);
-    } else if (totalDuration >= 300) {
-      problems.push(`今日学习 ${totalDuration} 分钟，强度较大，注意休息和效率，避免疲劳战。`);
-    }
-  }
-
-  // 模块均衡性
-  if (Object.keys(moduleStats).length === 1) {
-    problems.push(`仅学习了「${Object.keys(moduleStats)[0]}」一个模块，建议各模块均衡推进，避免偏科。`);
-  }
-
-  if (problems.length === 0) {
-    problems.push('暂未发现明显问题，继续保持良好的学习节奏！');
-  }
-  problems.forEach(p => { problemsHtml += `<div style="margin-bottom:6px;">• ${p}</div>`; });
-  problemsHtml += '</div></div>';
-
-  // 5. 改进建议
-  let suggestionsHtml = '<div class="ai-review-section"><div class="ai-review-label">💡 改进建议</div><div class="ai-review-content">';
-  const suggestions = [];
-
-  // 针对薄弱模块的建议
-  const moduleAccuracy = {};
-  Object.keys(moduleStats).forEach(m => {
-    const s = moduleStats[m];
-    if (s.questions > 0) moduleAccuracy[m] = Math.round(s.correct / s.questions * 100);
-  });
-  const weakModules = Object.keys(moduleAccuracy).filter(m => moduleAccuracy[m] < 70).sort((a, b) => moduleAccuracy[a] - moduleAccuracy[b]);
-
-  const moduleAdvice = {
-    '言语理解': '注重积累成语和实词，培养语感，掌握行文脉络分析方法，多做真题找语感',
-    '数量关系': '熟记核心公式，掌握高频题型（工程、行程、利润等），学会代入排除法',
-    '判断推理': '图形推理掌握规律分类，逻辑判断掌握推理规则，定义判断抓关键词',
-    '资料分析': '熟记公式（增长、比重、平均数），掌握速算技巧（截位直除），每题打草稿',
-    '常识判断': '日常积累为主，关注时政、法律、历史人文，利用碎片时间刷题',
-    '申论': '注重材料阅读和要点提炼，积累素材，练习文章结构，保持字迹工整'
-  };
-
-  if (weakModules.length > 0) {
-    suggestions.push(`<strong>薄弱模块专项突破：</strong>`);
-    weakModules.slice(0, 3).forEach(m => {
-      suggestions.push(`• <strong>${m}</strong>（正确率${moduleAccuracy[m]}%）：${moduleAdvice[m] || '加强专项练习'}`);
-    });
-  }
-
-  // 复习建议
-  if (wrongCount > 0) {
-    const needReview = wrongQuestions.filter(q => (q.reviewStage || 0) < 5);
-    if (needReview.length > 0) {
-      suggestions.push(`<strong>错题复习提醒：</strong>有 ${needReview.length} 道错题还未完成全部复习轮次，请按艾宾浩斯曲线及时复习（1天/3天/7天/15天/30天）。`);
-    }
-  }
-
-  // 学习方法建议
-  if (accuracy < 70 && totalQuestions > 0) {
-    suggestions.push(`<strong>学习方法建议：</strong>正确率偏低，建议采用「做题→对答案→分析错因→整理知识点→次日复习」的闭环学习法，每道错题都要吃透。`);
-  }
-  if (accuracy >= 70 && totalQuestions >= 20) {
-    suggestions.push(`<strong>学习方法建议：</strong>正确率不错，可以尝试限时训练，模拟考试节奏，提升做题速度。`);
-  }
-  if (totalQuestions > 0 && totalQuestions < 10) {
-    suggestions.push(`<strong>题量建议：</strong>今日做题量较少（${totalQuestions}题），建议每天至少做20-30题保持手感。`);
-  }
-
-  // 碎片时间建议
-  if (weekMode) {
-    suggestions.push(`<strong>时间管理：</strong>建议利用碎片时间（通勤、排队）刷常识或看申论素材，把大块时间留给需要深度思考的模块（如数量关系、资料分析）。`);
-  }
-
-  if (suggestions.length === 0) {
-    suggestions.push('继续保持当前的学习节奏，定期复习错题，稳扎稳打！');
-  }
-  suggestions.forEach(s => { suggestionsHtml += `<div style="margin-bottom:6px;">• ${s}</div>`; });
-  suggestionsHtml += '</div></div>';
-
-  // 6. 明日计划建议
-  let planHtml = '<div class="ai-review-section"><div class="ai-review-label">📋 明日学习计划建议</div><div class="ai-review-content">';
-  const plans = [];
-  if (weakModules.length > 0) {
-    plans.push(`优先攻克薄弱模块：<strong>${weakModules[0]}</strong>，做15-20题专项练习`);
-  }
-  if (wrongCount > 0) {
-    plans.push(`复习今日错题 ${wrongCount} 道，重点理解错误原因和正确解法`);
-  }
-  if (Object.keys(moduleStats).length < 3) {
-    const allModules = ['言语理解', '数量关系', '判断推理', '资料分析', '常识判断', '申论'];
-    const notStudied = allModules.filter(m => !moduleStats[m]);
-    if (notStudied.length > 0) {
-      plans.push(`适当安排<strong>${notStudied.slice(0, 2).join('、')}</strong>的学习，保持各模块均衡`);
-    }
-  }
-  plans.push(`做1-2篇申论练习（小题或大作文），保持写作手感`);
-  plans.push(`利用碎片时间刷10-20道常识题或看申论素材`);
-  plans.forEach((p, i) => { planHtml += `<div style="margin-bottom:4px;">${i + 1}. ${p}</div>`; });
-  planHtml += '</div></div>';
-
-  // 组装结果
-  const html = `
-    <div style="background:#fff;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);">
-      <h3 style="font-size:16px;margin-bottom:16px;color:var(--primary-1);">${title}</h3>
-      ${overviewHtml}
-      ${moduleHtml}
-      ${wrongAnalysisHtml}
-      ${problemsHtml}
-      ${suggestionsHtml}
-      ${planHtml}
-      <div style="margin-top:16px;display:flex;gap:10px;">
-        <button class="btn btn-success btn-sm" onclick="fillReviewForm(${weekMode ? false : true})">📝 填入复盘表单</button>
-      </div>
-    </div>
-  `;
-  document.getElementById('autoReviewResult').innerHTML = html;
-
-  // 存储分析数据供填入表单使用
-  window._lastAutoReview = {
-    date: today,
-    civilContent: generateCivilContentText(studyRecords, wrongQuestions, moduleStats),
-    civilDuration: totalDuration,
-    gains: extractGains(studyRecords, wrongQuestions, accuracy),
-    shortcomings: extractShortcomings(problems, weakModules, errorTypeCount),
-    tomorrowPlan: plans.join('\n')
-  };
-}
-
-function generateCivilContentText(studyRecords, wrongQuestions, moduleStats) {
-  const parts = [];
-  Object.keys(moduleStats).forEach(m => {
-    const s = moduleStats[m];
-    const acc = s.questions > 0 ? Math.round(s.correct / s.questions * 100) : 0;
-    parts.push(`${m}：做题${s.questions}题，正确率${acc}%，学习${s.duration}分钟`);
-  });
-  if (wrongQuestions.length > 0) {
-    parts.push(`\n错题${wrongQuestions.length}道，已整理记录`);
-  }
-  return parts.join('\n');
-}
-
-function extractGains(studyRecords, wrongQuestions, accuracy) {
-  const gains = [];
-  if (studyRecords.length > 0) {
-    gains.push(`完成${studyRecords.length}个模块的学习，共做题${studyRecords.reduce((s, r) => s + (r.questionCount || 0), 0)}题`);
-  }
-  if (accuracy >= 80) {
-    gains.push(`正确率达到${accuracy}%，掌握情况良好`);
-  }
-  if (wrongQuestions.length > 0) {
-    gains.push(`整理了${wrongQuestions.length}道错题，明确了薄弱点`);
-  }
-  return gains.join('；') || '今日完成了学习任务，积累了做题经验';
-}
-
-function extractShortcomings(problems, weakModules, errorTypeCount) {
-  const issues = [];
-  if (weakModules.length > 0) {
-    issues.push(`${weakModules[0]}等模块正确率偏低，需要加强`);
-  }
-  Object.keys(errorTypeCount).forEach(et => {
-    if (errorTypeCount[et] >= 2) {
-      issues.push(`${et}错误较多（${errorTypeCount[et]}道）`);
-    }
-  });
-  return issues.join('；') || '暂无明显问题，继续保持';
-}
-
-function fillReviewForm(isToday) {
-  const data = window._lastAutoReview;
-  if (!data) return;
+/* ===== 今日完成情况自动生成 ===== */
+// 扫描当日各模块数据，自动生成"今日完成情况"文本并填入表单
+function autoFillTodayCompletion() {
   const form = document.getElementById('reviewForm');
-  form.date.value = data.date;
-  form.civilContent.value = data.civilContent;
-  form.civilDuration.value = data.civilDuration;
-  form.gains.value = data.gains;
-  form.shortcomings.value = data.shortcomings;
-  form.tomorrowPlan.value = data.tomorrowPlan;
-  // 滚动到表单
-  form.scrollIntoView({ behavior: 'smooth' });
+  const date = form.date.value || todayStr();
+  if (!date) { alert('请先选择日期'); return; }
+
+  const lines = [];
+
+  // 1. 公务员学习记录
+  const studyRecs = DB.studyRecords.filter(r => r.date === date);
+  if (studyRecs.length > 0) {
+    const totalQ = studyRecs.reduce((s, r) => s + (r.questionCount || 0), 0);
+    const totalC = studyRecs.reduce((s, r) => s + (r.correctCount || 0), 0);
+    const totalD = studyRecs.reduce((s, r) => s + (r.duration || 0), 0);
+    const acc = totalQ > 0 ? Math.round(totalC / totalQ * 100) : 0;
+    const modules = [...new Set(studyRecs.map(r => r.module))].join('、');
+    lines.push(`📚 公务员学习：${modules}，共做题 ${totalQ} 题（正确 ${totalC}，正确率 ${acc}%），用时 ${totalD} 分钟`);
+  }
+
+  // 2. 错题整理
+  const wrongs = DB.wrongQuestions.filter(q => q.date === date);
+  if (wrongs.length > 0) {
+    const types = {};
+    wrongs.forEach(q => { const et = q.errorType || '未分类'; types[et] = (types[et] || 0) + 1; });
+    const typeStr = Object.keys(types).map(t => `${t}${types[t]}道`).join('、');
+    lines.push(`❌ 错题整理：共记录 ${wrongs.length} 道错题（${typeStr}）`);
+  }
+
+  // 3. 申论练习
+  const shenluns = DB.shenlunPractices.filter(p => p.date === date);
+  if (shenluns.length > 0) {
+    const topics = shenluns.map(p => p.topic || '未命名').join('、');
+    const totalD = shenluns.reduce((s, p) => s + (p.duration || 0), 0);
+    lines.push(`✍️ 申论练习：${topics}，用时 ${totalD} 分钟`);
+  }
+
+  // 4. 英语授课
+  const engLessons = DB.englishLessons.filter(l => l.date === date);
+  if (engLessons.length > 0) {
+    const details = engLessons.map(l => {
+      const grade = l.grade || '';
+      const lt = l.lessonType || '';
+      const ts = l.timeSlot || '';
+      return `${ts} ${grade}${lt}`;
+    }).join('；');
+    lines.push(`🇬🇧 英语授课：${engLessons.length} 节（${details}）`);
+  }
+
+  // 5. 普通话授课
+  const pthCourses = DB.putonghuaCourses.filter(c => c.date === date);
+  if (pthCourses.length > 0) {
+    const names = [...new Set(pthCourses.map(c => c.studentName))].join('、');
+    lines.push(`🗣️ 普通话授课：${pthCourses.length} 节，学生：${names}`);
+  }
+
+  // 6. 运动
+  const exercises = DB.exercises.filter(e => e.date === date);
+  if (exercises.length > 0) {
+    const details = exercises.map(e => {
+      const parts = [e.type || '运动'];
+      if (e.amount) parts.push(e.amount);
+      if (e.duration) parts.push(e.duration + '分钟');
+      return parts.join(' ');
+    }).join('；');
+    lines.push(`🏃 运动锻炼：${details}`);
+  }
+
+  // 7. 阅读笔记
+  const notes = DB.readingNotes.filter(n => n.date === date);
+  if (notes.length > 0) {
+    const bookTitles = notes.map(n => {
+      const book = DB.books.find(b => b.id === n.bookId);
+      return book ? `${book.title}（第${n.page||0}页）` : '某书';
+    }).join('、');
+    lines.push(`📖 图书阅读：记录 ${notes.length} 条笔记 — ${bookTitles}`);
+  }
+
+  if (lines.length === 0) {
+    form.todayCompletion.value = `📅 ${date}：今日各模块暂无记录数据`;
+  } else {
+    form.todayCompletion.value = `📅 ${date} 完成情况：\n${lines.join('\n')}`;
+  }
 }
+
 function addReview() {
   const form = document.getElementById('reviewForm');
   const fd = new FormData(form);
   if (!fd.get('date')) { alert('请选择日期'); return; }
   const exist = DB.reviews.find(r => r.date === fd.get('date'));
   const data = {
-    civilService: { content: fd.get('civilContent') || '', duration: parseInt(fd.get('civilDuration')) || 0 },
-    english: { content: fd.get('englishContent') || '', duration: parseInt(fd.get('englishDuration')) || 0 },
-    work: { content: fd.get('workContent') || '', duration: parseInt(fd.get('workDuration')) || 0 },
-    exercise: { content: fd.get('exerciseContent') || '' },
-    gains: fd.get('gains') || '',
-    shortcomings: fd.get('shortcomings') || '',
-    tomorrowPlan: fd.get('tomorrowPlan') || ''
+    efficiencyRating: parseInt(fd.get('efficiencyRating')) || 0,
+    todayCompletion: fd.get('todayCompletion') || '',
+    keyReflection: fd.get('keyReflection') || '',
+    tomorrowImprovement: fd.get('tomorrowImprovement') || '',
+    summary: fd.get('summary') || ''
   };
   if (exist) {
     Object.assign(exist, data);
@@ -3802,6 +3568,7 @@ function addReview() {
   saveData();
   form.reset();
   setToday();
+  form.efficiencyRating.value = '8';
   renderReviewPage();
 }
 function deleteReview(id) {
@@ -3818,16 +3585,16 @@ function renderReviewList() {
     return;
   }
   el.innerHTML = list.map(r => {
-    const totalDur = (r.civilService?.duration||0) + (r.english?.duration||0) + (r.work?.duration||0);
+    const rating = r.efficiencyRating || 0;
+    const ratingColor = rating >= 8 ? '#38b2ac' : rating >= 6 ? '#d69e2e' : rating >= 4 ? '#dd6b20' : '#e53e3e';
     return `<div class="list-item">
       <div class="list-header">
         <div style="flex:1;">
           <div class="list-title">📅 ${r.date} 复盘</div>
           <div class="list-meta">
-            <span>⏱️ 共 ${totalDur} 分钟</span>
-            <span class="tag tag-purple">公务员 ${r.civilService?.duration||0}分</span>
-            <span class="tag tag-green">英语 ${r.english?.duration||0}分</span>
-            <span class="tag tag-gray">工作 ${r.work?.duration||0}分</span>
+            <span>⚡ 效率自评</span>
+            <span class="tag" style="background:${ratingColor};color:#fff;font-weight:600;">${rating} / 10</span>
+            ${r.summary ? `<span>📝 ${escapeHtml(r.summary.substring(0, 20))}${r.summary.length > 20 ? '...' : ''}</span>` : ''}
           </div>
         </div>
         <div>
@@ -3836,13 +3603,11 @@ function renderReviewList() {
         </div>
       </div>
       <div class="review-detail" id="reviewDetail_${r.id}">
-        ${r.civilService?.content ? `<div class="review-detail-section"><div class="rd-label">📚 公务员学习</div><div class="rd-content">${escapeHtml(r.civilService.content)}（${r.civilService.duration||0}分钟）</div></div>` : ''}
-        ${r.english?.content ? `<div class="review-detail-section"><div class="rd-label">🇬🇧 英语学习</div><div class="rd-content">${escapeHtml(r.english.content)}（${r.english.duration||0}分钟）</div></div>` : ''}
-        ${r.work?.content ? `<div class="review-detail-section"><div class="rd-label">💼 工作内容</div><div class="rd-content">${escapeHtml(r.work.content)}（${r.work.duration||0}分钟）</div></div>` : ''}
-        ${r.exercise?.content ? `<div class="review-detail-section"><div class="rd-label">🏃 运动情况</div><div class="rd-content">${escapeHtml(r.exercise.content)}</div></div>` : ''}
-        ${r.gains ? `<div class="review-detail-section"><div class="rd-label">✨ 今日收获</div><div class="rd-content">${escapeHtml(r.gains)}</div></div>` : ''}
-        ${r.shortcomings ? `<div class="review-detail-section"><div class="rd-label">⚠️ 今日不足</div><div class="rd-content">${escapeHtml(r.shortcomings)}</div></div>` : ''}
-        ${r.tomorrowPlan ? `<div class="review-detail-section"><div class="rd-label">📋 明日计划</div><div class="rd-content">${escapeHtml(r.tomorrowPlan)}</div></div>` : ''}
+        ${r.todayCompletion ? `<div class="review-detail-section"><div class="rd-label">📋 今日完成情况</div><div class="rd-content">${escapeHtml(r.todayCompletion)}</div></div>` : ''}
+        ${r.efficiencyRating ? `<div class="review-detail-section"><div class="rd-label">⚡ 效率自评</div><div class="rd-content"><span style="color:${ratingColor};font-weight:600;">${rating} / 10</span></div></div>` : ''}
+        ${r.keyReflection ? `<div class="review-detail-section"><div class="rd-label">💡 关键反思</div><div class="rd-content">${escapeHtml(r.keyReflection)}</div></div>` : ''}
+        ${r.tomorrowImprovement ? `<div class="review-detail-section"><div class="rd-label">🚀 明日改进</div><div class="rd-content">${escapeHtml(r.tomorrowImprovement)}</div></div>` : ''}
+        ${r.summary ? `<div class="review-detail-section"><div class="rd-label">📝 总结</div><div class="rd-content">${escapeHtml(r.summary)}</div></div>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -3851,23 +3616,21 @@ function toggleReviewDetail(id) {
   document.getElementById('reviewDetail_' + id).classList.toggle('show');
 }
 function renderReviewCharts() {
-  // 本周每日学习时长柱状图
+  // 本周效率自评折线图
   const labels = [], data = [];
   for (let i = 6; i >= 0; i--) {
     const d = daysAgoStr(i);
     labels.push(friendlyDate(d));
     const rv = DB.reviews.find(r => r.date === d);
-    let dur = 0;
-    if (rv) dur = (rv.civilService?.duration||0) + (rv.english?.duration||0) + (rv.work?.duration||0);
-    data.push(dur);
+    data.push(rv && rv.efficiencyRating ? rv.efficiencyRating : 0);
   }
   destroyChart('chartReviewWeek');
   const ctx1 = document.getElementById('chartReviewWeek');
   if (ctx1) {
     charts.chartReviewWeek = new Chart(ctx1, {
       type: 'bar',
-      data: { labels: labels, datasets: [{ label: '学习时长(分钟)', data: data, backgroundColor: 'rgba(102,126,234,0.7)', borderRadius: 6 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      data: { labels: labels, datasets: [{ label: '效率自评(分)', data: data, backgroundColor: 'rgba(102,126,234,0.7)', borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 10 } } }
     });
   }
   // 效率趋势（近14天）
@@ -3876,17 +3639,15 @@ function renderReviewCharts() {
     const d = daysAgoStr(i);
     labels14.push(friendlyDate(d));
     const rv = DB.reviews.find(r => r.date === d);
-    let dur = 0;
-    if (rv) dur = (rv.civilService?.duration||0) + (rv.english?.duration||0) + (rv.work?.duration||0);
-    data14.push(dur);
+    data14.push(rv && rv.efficiencyRating ? rv.efficiencyRating : 0);
   }
   destroyChart('chartEfficiencyTrend');
   const ctx2 = document.getElementById('chartEfficiencyTrend');
   if (ctx2) {
     charts.chartEfficiencyTrend = new Chart(ctx2, {
       type: 'line',
-      data: { labels: labels14, datasets: [{ label: '总时长(分钟)', data: data14, borderColor: '#fa709a', backgroundColor: 'rgba(250,112,154,0.1)', fill: true, tension: 0.3 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      data: { labels: labels14, datasets: [{ label: '效率自评(分)', data: data14, borderColor: '#fa709a', backgroundColor: 'rgba(250,112,154,0.1)', fill: true, tension: 0.3 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 10 } } }
     });
   }
 }
@@ -4230,13 +3991,11 @@ function generateSampleData() {
     const date = daysAgoStr(i);
     DB.reviews.push({
       id: uid(), date,
-      civilService: { content: i===0?'资料分析专项练习':'言语理解+判断推理刷题', duration: 120 + i * 20 },
-      english: { content: '背单词+阅读理解练习', duration: 30 },
-      work: { content: '处理日常事务，准备教学材料', duration: 180 },
-      exercise: { content: i===0?'游泳1000米':'跑步5公里' },
-      gains: '掌握了资料分析核心公式，做题速度提升',
-      shortcomings: '计算还需更细心，成语积累不足',
-      tomorrowPlan: '继续巩固资料分析，加强成语积累'
+      efficiencyRating: [9, 7, 8, 6][i] || 7,
+      todayCompletion: `📅 ${date} 完成情况：\n📚 公务员学习：${i===0?'资料分析':'言语理解+判断推理'}，共做题 25 题（正确 20，正确率 80%），用时 ${120 + i * 20} 分钟\n🇬🇧 英语授课：2 节\n🏃 运动锻炼：${i===0?'游泳 1000米':'跑步 5公里 30分钟'}`,
+      keyReflection: i===0 ? '资料分析核心公式已掌握，但计算还需更细心' : '言语理解成语积累不足，需加强',
+      tomorrowImprovement: '继续巩固资料分析，加强成语积累',
+      summary: i===0 ? '高效一天，按计划完成所有任务' : '基本完成，但效率有提升空间'
     });
   }
 
@@ -4468,6 +4227,9 @@ function init() {
   }
   setToday();
   setWrongFormMode('quick');
+  // 设置反思表单默认效率自评为 8 分
+  const reviewForm = document.getElementById('reviewForm');
+  if (reviewForm && reviewForm.efficiencyRating) reviewForm.efficiencyRating.value = '8';
   renderCivilPage();
 }
 
