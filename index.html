@@ -1828,12 +1828,27 @@ async function callDoubaoAI() {
   regenBtn.textContent = '⏳ 生成中...';
 
   // 构建提示词
-  const systemPrompt = '你是一位经验丰富的公务员考试辅导老师，擅长行测和申论教学。请根据学生的错题信息，生成详细的解析。输出格式严格如下：\n\n【正确答案】...\n【我的答案】...\n【错因分析】分析学生为什么选错，指出具体的思维误区\n【解题思路】分步骤讲解，每步简明扼要\n【知识点积累】提炼本题核心知识点，用简洁的语言概括';
+  const systemPrompt = `你是一位犀利、直接的公务员考试错题分析老师。你的分析风格是：直指学生错误选项的痛点，不做泛泛而谈，每一句话都要有针对性。
+
+输出格式严格如下（不要加多余的开头结尾）：
+
+题干核心：（一句话概括题干关键信息、考点、逻辑关系，不超过两行）
+
+你的答案：XXX
+✘ 错因1：（直指第一个错误点，说明学生选的词/项哪里不对，为什么不对）
+✘ 错因2：（第二个错误点，如果有更多就继续列）
+✘ 错因3：（第三个错误点）
+
+正确项：XXX
+✔ （逐空/逐项说明正确答案为什么对，和学生错选的项做对比）
+
+知识点积累（易混词语区分 / 易错点辨析）
+（把本题涉及的易混淆知识点列出来，格式：词A：释义+侧重；词B：释义+侧重；用分号分隔不同组）`;
   let userPrompt = `模块：${d.module}\n`;
   if (d.qType) userPrompt += `题型：${d.qType}\n`;
   userPrompt += `题目：${d.question}\n`;
   if (d.myAnswer) userPrompt += `我的答案：${d.myAnswer}\n`;
-  userPrompt += `正确答案：${d.correctAnswer}\n\n请按照指定格式生成解析。`;
+  userPrompt += `正确答案：${d.correctAnswer}\n\n请按照上面的格式，直击我的错误选项痛点，给出犀利、有针对性的分析。不要官方套话，要像一对一辅导一样直接指出我的问题。`;
 
   try {
     const resp = await fetch(DOUBAO_API_URL, {
@@ -1865,7 +1880,7 @@ async function callDoubaoAI() {
     if (content) {
       analysisEl.value = content.trim();
       // 尝试提取知识点
-      const kpMatch = content.match(/【知识点积累】(.+?)(?=\n【|$)/s);
+      const kpMatch = content.match(/知识点积累[^\n]*\n([\s\S]+?)(?=\n\n|$)/);
       if (kpMatch) {
         kpEl.value = kpMatch[1].trim().split('\n')[0].substring(0, 80);
       }
