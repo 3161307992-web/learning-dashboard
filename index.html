@@ -440,6 +440,7 @@ body {
       <div class="nav-item" data-page="exercise" onclick="switchPage('exercise')"><span class="icon">🏊</span>运动游泳</div>
       <div class="nav-item" data-page="review" onclick="switchPage('review')"><span class="icon">📝</span>日常反思</div>
       <div class="nav-item" data-page="books" onclick="switchPage('books')"><span class="icon">📖</span>图书阅读</div>
+      <div class="nav-item" data-page="daily" onclick="switchPage('daily')"><span class="icon">📰</span>每日考情</div>
     </nav>
     <div class="sidebar-footer">
       <div style="margin-bottom:8px;cursor:pointer;color:var(--text-secondary);font-size:12px;" onclick="openAIKeyModal()">🔑 豆包AI设置</div>
@@ -1298,6 +1299,46 @@ body {
       </div>
     </section>
 
+    <!-- ========== 7. 每日考情 ========== -->
+    <section class="page" id="page-daily">
+      <div class="page-title"><span class="emoji">📰</span>每日考情</div>
+
+      <!-- 日期选择 + 生成按钮 -->
+      <div class="card">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <div class="form-group" style="margin:0;">
+            <label>选择日期</label>
+            <input type="date" id="dailyDate" onchange="loadDailyData()">
+          </div>
+          <button class="btn btn-primary" id="btnGenNews" onclick="generateDailyNews()">🔍 生成今日时政</button>
+          <button class="btn btn-primary" id="btnGenQuotes" onclick="generateDailyQuotes()">✍️ 生成申论金句</button>
+        </div>
+        <p style="font-size:12px;color:var(--text-light);margin-top:8px;">点击按钮由豆包AI生成内容，生成后自动保存，之后可随时按日期回看。</p>
+      </div>
+
+      <!-- 时政热点 -->
+      <div class="card">
+        <div class="card-title"><span><span class="emoji">🌍</span>时政热点</span></div>
+        <div id="dailyNewsArea">
+          <div class="empty-state"><div class="emoji">📡</div><div>点击「生成今日时政」获取当天热点新闻及考点标注</div></div>
+        </div>
+      </div>
+
+      <!-- 申论金句 -->
+      <div class="card">
+        <div class="card-title"><span><span class="emoji">✍️</span>申论金句 / 素材积累</span></div>
+        <div id="dailyQuotesArea">
+          <div class="empty-state"><div class="emoji">💎</div><div>点击「生成申论金句」获取每日规范表述与素材</div></div>
+        </div>
+      </div>
+
+      <!-- 历史记录 -->
+      <div class="card">
+        <div class="card-title"><span><span class="emoji">📅</span>历史记录</span></div>
+        <div id="dailyHistoryList"></div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -1404,7 +1445,9 @@ let DB = {
   exerciseGoal: { weeklyCount: 3, weeklyMinutes: 180 },
   reviews: [],
   books: [],
-  readingNotes: []
+  readingNotes: [],
+  dailyNews: {},
+  dailyQuotes: {}
 };
 let charts = {};
 
@@ -1427,6 +1470,8 @@ function loadData() {
   if (!DB.exerciseGoal || typeof DB.exerciseGoal !== 'object') {
     DB.exerciseGoal = { weeklyCount: 3, weeklyMinutes: 180 };
   }
+  if (!DB.dailyNews || typeof DB.dailyNews !== 'object') DB.dailyNews = {};
+  if (!DB.dailyQuotes || typeof DB.dailyQuotes !== 'object') DB.dailyQuotes = {};
 }
 function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
@@ -1570,7 +1615,7 @@ function destroyAllCharts() {
 /* ===================== 页面切换 ===================== */
 const PAGE_TITLES = {
   civil: '公务员学习', english: '英语课堂', putonghua: '普通话课堂',
-  exercise: '运动游泳', review: '日常反思', books: '图书阅读'
+  exercise: '运动游泳', review: '日常反思', books: '图书阅读', daily: '每日考情'
 };
 function switchPage(page) {
   destroyAllCharts();
@@ -1593,6 +1638,7 @@ function renderPage(page) {
     case 'exercise': renderExercisePage(); break;
     case 'review': renderReviewPage(); break;
     case 'books': renderBooksPage(); break;
+    case 'daily': renderDailyPage(); break;
   }
 }
 function toggleSidebar() {
@@ -4215,6 +4261,195 @@ function generateSampleData() {
 }
 
 /* ===================== 初始化 ===================== */
+/* ===================== 7. 每日考情 ===================== */
+function renderDailyPage() {
+  const dateEl = document.getElementById('dailyDate');
+  if (!dateEl.value) dateEl.value = todayStr();
+  loadDailyData();
+  renderDailyHistory();
+}
+
+function loadDailyData() {
+  const date = document.getElementById('dailyDate').value || todayStr();
+  // 加载时政
+  const news = DB.dailyNews[date];
+  const newsArea = document.getElementById('dailyNewsArea');
+  if (news) {
+    newsArea.innerHTML = renderNewsCard(news, date);
+  } else {
+    newsArea.innerHTML = '<div class="empty-state"><div class="emoji">📡</div><div>点击「生成今日时政」获取当天热点新闻及考点标注</div></div>';
+  }
+  // 加载金句
+  const quotes = DB.dailyQuotes[date];
+  const quotesArea = document.getElementById('dailyQuotesArea');
+  if (quotes) {
+    quotesArea.innerHTML = renderQuotesCard(quotes, date);
+  } else {
+    quotesArea.innerHTML = '<div class="empty-state"><div class="emoji">💎</div><div>点击「生成申论金句」获取每日规范表述与素材</div></div>';
+  }
+}
+
+function renderNewsCard(news, date) {
+  return `
+    <div style="font-size:13px;color:var(--text-light);margin-bottom:12px;">📅 ${date} · 生成于 ${news.generatedAt || ''}</div>
+    <div style="white-space:pre-wrap;line-height:1.8;font-size:14px;">${escapeHtml(news.content)}</div>
+    <div style="margin-top:12px;">
+      <button class="btn btn-outline btn-sm" onclick="generateDailyNews()">🔄 重新生成</button>
+    </div>`;
+}
+
+function renderQuotesCard(quotes, date) {
+  return `
+    <div style="font-size:13px;color:var(--text-light);margin-bottom:12px;">📅 ${date} · 生成于 ${quotes.generatedAt || ''}</div>
+    <div style="white-space:pre-wrap;line-height:1.8;font-size:14px;">${escapeHtml(quotes.content)}</div>
+    <div style="margin-top:12px;">
+      <button class="btn btn-outline btn-sm" onclick="generateDailyQuotes()">🔄 重新生成</button>
+    </div>`;
+}
+
+async function callDoubaoForDaily(systemPrompt, userPrompt, btnId, onSuccess) {
+  const apiKey = getDoubaoKey();
+  if (!apiKey) {
+    alert('请先在左下角「🔑 豆包AI设置」中配置API Key');
+    return;
+  }
+  const btn = document.getElementById(btnId);
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ 生成中...';
+
+  try {
+    const resp = await fetch(DOUBAO_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey
+      },
+      body: JSON.stringify({
+        model: DOUBAO_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.5,
+        max_tokens: 2000
+      })
+    });
+    if (!resp.ok) throw new Error('API返回 ' + resp.status);
+    const data = await resp.json();
+    const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    if (!content) throw new Error('AI返回内容为空');
+    onSuccess(content.trim());
+  } catch (err) {
+    alert('生成失败：' + err.message + '，请稍后重试');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+async function generateDailyNews() {
+  const date = document.getElementById('dailyDate').value || todayStr();
+  const systemPrompt = `你是一位公务员考试时政辅导老师。请生成${date}前后的国内外重要时政热点。
+输出格式严格如下（不要加多余开头）：
+
+📰 今日时政热点（${date}）
+
+1. 【新闻标题】
+   核心内容：一句话概括新闻事件
+   📌 考点标注：关联的公考常识考点（如"十四五规划""乡村振兴战略"等具体知识点）
+
+2. 【新闻标题】
+   核心内容：...
+   📌 考点标注：...
+
+3. 【新闻标题】
+   核心内容：...
+   📌 考点标注：...
+
+4. 【新闻标题】
+   核心内容：...
+   📌 考点标注：...
+
+5. 【新闻标题】
+   核心内容：...
+   📌 考点标注：...
+
+💡 备考提示：一句话总结今天时政的整体备考方向。`;
+
+  const userPrompt = `请生成${date}前后的5条重要时政热点新闻，每条都要标注对应的公考常识考点。新闻要涵盖政治、经济、科技、民生、外交等领域。`;
+
+  await callDoubaoForDaily(systemPrompt, userPrompt, 'btnGenNews', (content) => {
+    DB.dailyNews[date] = { content, generatedAt: new Date().toLocaleString('zh-CN') };
+    saveData();
+    loadDailyData();
+    renderDailyHistory();
+  });
+}
+
+async function generateDailyQuotes() {
+  const date = document.getElementById('dailyDate').value || todayStr();
+  const systemPrompt = `你是一位公务员考试申论辅导老师。请生成每日申论金句和素材积累。
+输出格式严格如下（不要加多余开头）：
+
+✍️ 每日申论金句（${date}）
+
+【金句一】
+"金句原文内容"
+—— 出处（如：习近平总书记讲话/政府工作报告等）
+📌 适用主题：民生/经济/生态/法治/文化等
+💡 运用场景：在申论写作中如何使用这句金句的简要提示
+
+【金句二】
+"金句原文内容"
+—— 出处
+📌 适用主题：...
+💡 运用场景：...
+
+【今日素材积累】
+按主题分类积累2-3个规范表述或政策热词，格式：
+• 主题：规范表述原文 —— 简要释义`;
+
+  const userPrompt = `请生成${date}的每日申论金句，包含2句官方规范表述和2-3个素材积累，按主题分类。金句要来自真实讲话或文件，不要编造。`;
+
+  await callDoubaoForDaily(systemPrompt, userPrompt, 'btnGenQuotes', (content) => {
+    DB.dailyQuotes[date] = { content, generatedAt: new Date().toLocaleString('zh-CN') };
+    saveData();
+    loadDailyData();
+    renderDailyHistory();
+  });
+}
+
+function renderDailyHistory() {
+  const el = document.getElementById('dailyHistoryList');
+  const newsDates = Object.keys(DB.dailyNews || {}).sort().reverse();
+  const quoteDates = Object.keys(DB.dailyQuotes || {}).sort().reverse();
+  const allDates = [...new Set([...newsDates, ...quoteDates])].sort().reverse();
+
+  if (allDates.length === 0) {
+    el.innerHTML = '<div style="color:var(--text-light);font-size:13px;text-align:center;padding:12px;">暂无历史记录</div>';
+    return;
+  }
+
+  el.innerHTML = allDates.map(d => {
+    const hasNews = DB.dailyNews[d];
+    const hasQuotes = DB.dailyQuotes[d];
+    return `
+      <div class="list-item" style="padding:10px 12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <b>📅 ${d}</b>
+            <span style="margin-left:8px;font-size:12px;">
+              ${hasNews ? '<span class="tag tag-blue">时政</span>' : ''}
+              ${hasQuotes ? '<span class="tag tag-purple">金句</span>' : ''}
+            </span>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('dailyDate').value='${d}';loadDailyData();window.scrollTo({top:0,behavior:'smooth'});">查看</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 function init() {
   loadData();
   if (DB.wrongQuestions.length === 0 && DB.studyRecords.length === 0 &&
