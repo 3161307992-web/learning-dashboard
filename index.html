@@ -1916,6 +1916,7 @@ function uid() { return Date.now() + Math.floor(Math.random() * 10000); }
 /* ===================== 豆包AI配置 ===================== */
 const DOUBAO_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
 const DOUBAO_MODEL = 'doubao-seed-2-0-lite-260428';
+const DOUBAO_VISION_MODEL = 'doubao-1-5-vision-pro-32k-250115'; // 视觉模型，用于图片题目分析
 const DOUBAO_KEY_STORE = 'doubao_api_key';
 function getDoubaoKey() { return localStorage.getItem(DOUBAO_KEY_STORE) || ''; }
 function setDoubaoKey(k) { localStorage.setItem(DOUBAO_KEY_STORE, k); }
@@ -2569,7 +2570,9 @@ function saveAIKey() {
 
 async function callDoubaoAI() {
   const d = _wrongStep1Data;
-  if (!d || !d.question) return;
+  const hasImages = d && d.images && d.images.length > 0;
+  // 没有文字题目且没有图片时，无法分析
+  if (!d || (!d.question && !hasImages)) return;
 
   // 检查API Key
   const apiKey = getDoubaoKey();
@@ -2591,6 +2594,9 @@ async function callDoubaoAI() {
   loadingTip.style.display = 'block';
   regenBtn.disabled = true;
   regenBtn.textContent = '⏳ 生成中...';
+  if (hasImages) {
+    loadingTip.innerHTML = '<span class="ai-spinner"></span> 豆包AI（视觉模型）正在识别图片并分析中，图片越多越慢，请耐心等待...';
+  }
 
   // 构建提示词
   const systemPrompt = `你是一位犀利、直接的公务员考试错题分析老师。你的分析风格是：直指学生错误选项的痛点，不做泛泛而谈，每一句话都要有针对性。
@@ -2611,9 +2617,28 @@ async function callDoubaoAI() {
 （把本题涉及的易混淆知识点列出来，格式：词A：释义+侧重；词B：释义+侧重；用分号分隔不同组）`;
   let userPrompt = `模块：${d.module}\n`;
   if (d.qType) userPrompt += `题型：${d.qType}\n`;
-  userPrompt += `题目：${d.question}\n`;
+  if (d.question) {
+    userPrompt += `题目：${d.question}\n`;
+  } else if (hasImages) {
+    userPrompt += `题目：（见上传图片，请先识别图片中的题目内容再分析）\n`;
+  }
   if (d.myAnswer) userPrompt += `我的答案：${d.myAnswer}\n`;
   userPrompt += `正确答案：${d.correctAnswer}\n\n请按照上面的格式，直击我的错误选项痛点，给出犀利、有针对性的分析。不要官方套话，要像一对一辅导一样直接指出我的问题。`;
+
+  // 构建消息体：有图片时用多模态格式，并切换视觉模型
+  let userMessage;
+  let useModel = DOUBAO_MODEL;
+  if (hasImages) {
+    useModel = DOUBAO_VISION_MODEL;
+    const contentParts = [{ type: 'text', text: userPrompt }];
+    d.images.forEach(img => {
+      // img 是 dataURL（data:image/jpeg;base64,...），豆包多模态接口直接接受
+      contentParts.push({ type: 'image_url', image_url: { url: img } });
+    });
+    userMessage = { role: 'user', content: contentParts };
+  } else {
+    userMessage = { role: 'user', content: userPrompt };
+  }
 
   try {
     const resp = await fetch(DOUBAO_API_URL, {
@@ -2623,10 +2648,10 @@ async function callDoubaoAI() {
         'Authorization': 'Bearer ' + getDoubaoKey()
       },
       body: JSON.stringify({
-        model: DOUBAO_MODEL,
+        model: useModel,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
+          userMessage
         ],
         temperature: 0.3,
         max_tokens: 2000
@@ -2655,13 +2680,17 @@ async function callDoubaoAI() {
   } catch (err) {
     console.error('豆包AI调用失败:', err);
     // 保留模板内容，提示用户
-    loadingTip.innerHTML = '⚠️ AI分析失败（' + err.message + '），已使用模板解析，可点击重新生成或手动修改';
+    let errMsg = '⚠️ AI分析失败（' + err.message + '），已使用模板解析，可点击重新生成或手动修改';
+    if (hasImages) {
+      errMsg += '<br>💡 图片题目需调用视觉模型（' + DOUBAO_VISION_MODEL + '），若失败请确认火山引擎控制台已开通该模型，或在题目内容框补充文字描述后重试。';
+    }
+    loadingTip.innerHTML = errMsg;
     loadingTip.style.color = '#e53e3e';
     setTimeout(() => {
       loadingTip.style.display = 'none';
       loadingTip.innerHTML = '<span class="ai-spinner"></span> 豆包AI正在分析中，请稍候...';
       loadingTip.style.color = '#6366f1';
-    }, 5000);
+    }, 8000);
     regenBtn.disabled = false;
     regenBtn.textContent = '🔄 重新生成';
     return;
