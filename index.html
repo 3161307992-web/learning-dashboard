@@ -885,8 +885,14 @@ body {
               <input type="text" name="location" placeholder="如：2024国考副省级 第1题 / 资料一">
             </div>
             <div class="form-group full">
-              <label>我的作答要点</label>
-              <textarea name="myAnswer" placeholder="分条记录你的作答要点" rows="3"></textarea>
+              <label>我的作答要点 <span style="font-size:12px;color:var(--text-light);">（上传作答截图）</span></label>
+              <div class="image-upload-area" id="shenlunAnswerUpload" style="margin-top:0;">
+                <div class="image-upload-hint" id="shenlunAnswerHint">
+                  📷 点击此处选择图片，或<span style="color:var(--primary-1);">直接粘贴截图</span>（Ctrl+V）
+                </div>
+                <input type="file" id="shenlunAnswerFile" accept="image/*" multiple style="display:none;" onchange="handleShenlunAnswerFiles(this.files)">
+                <div class="image-preview-list" id="shenlunAnswerPreview"></div>
+              </div>
             </div>
             <div class="form-group full">
               <label>✅ 标准答案</label>
@@ -907,7 +913,7 @@ body {
           </div>
           <div class="form-actions">
             <button class="btn btn-primary" onclick="addShenlunPractice()">💾 保存练习</button>
-            <button class="btn btn-outline" onclick="document.getElementById('shenlunForm').reset();setToday()">重置</button>
+            <button class="btn btn-outline" onclick="document.getElementById('shenlunForm').reset();setToday();clearShenlunAnswerImages();lastImageUploadTarget=''">重置</button>
           </div>
         </form>
 
@@ -2304,28 +2310,100 @@ function viewImage(src) {
   document.body.appendChild(modal);
 }
 
+/* ===== 申论作答图片上传 ===== */
+let shenlunAnswerImages = [];   // 录入/编辑时的作答图片数组（base64）
+let lastImageUploadTarget = ''; // 记录最近点击的上传区域：'wrong' / 'shenlun'
+
+function handleShenlunAnswerFiles(files) {
+  if (!files || !files.length) return;
+  const maxTotal = 6;
+  Array.from(files).forEach(file => {
+    if (shenlunAnswerImages.length >= maxTotal) { alert('最多上传 ' + maxTotal + ' 张图片'); return; }
+    if (!file.type.startsWith('image/')) return;
+    compressImage(file, 300000, function(dataUrl) {
+      shenlunAnswerImages.push(dataUrl);
+      renderShenlunAnswerPreview();
+    });
+  });
+  document.getElementById('shenlunAnswerFile').value = '';
+}
+
+function renderShenlunAnswerPreview() {
+  const el = document.getElementById('shenlunAnswerPreview');
+  const hint = document.getElementById('shenlunAnswerHint');
+  if (!el) return;
+  if (shenlunAnswerImages.length === 0) {
+    el.innerHTML = '';
+    if (hint) hint.style.display = 'block';
+    return;
+  }
+  if (hint) hint.style.display = 'none';
+  el.innerHTML = shenlunAnswerImages.map((src, i) =>
+    `<div class="image-preview-item">
+      <img src="${src}" onclick="viewImage('${src}')">
+      <button class="remove-btn" onclick="event.stopPropagation();removeShenlunAnswerImage(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeShenlunAnswerImage(idx) {
+  shenlunAnswerImages.splice(idx, 1);
+  renderShenlunAnswerPreview();
+}
+
+function clearShenlunAnswerImages() {
+  shenlunAnswerImages = [];
+  renderShenlunAnswerPreview();
+}
+
+function setShenlunAnswerImages(list) {
+  shenlunAnswerImages = Array.isArray(list) ? list.slice() : [];
+  renderShenlunAnswerPreview();
+}
+
 function initWrongImagePaste() {
   const uploadArea = document.getElementById('wrongImageUpload');
   const editArea = document.getElementById('editWrongImageUpload');
+  const shenlunArea = document.getElementById('shenlunAnswerUpload');
   if (uploadArea) {
     uploadArea.addEventListener('click', function(e) {
-      if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'IMG')
+      if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'IMG') {
+        lastImageUploadTarget = 'wrong';
         document.getElementById('wrongImageFile').click();
+      }
+    });
+  }
+  if (shenlunArea) {
+    shenlunArea.addEventListener('click', function(e) {
+      if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'IMG') {
+        lastImageUploadTarget = 'shenlun';
+        document.getElementById('shenlunAnswerFile').click();
+      }
     });
   }
   document.addEventListener('paste', function(e) {
     const items = e.clipboardData?.items;
     if (!items) return;
-    const isOnForm = document.getElementById('wrongStep1')?.style.display !== 'none' &&
-                     document.getElementById('page-civil')?.classList.contains('active');
-    const isOnEdit = document.getElementById('wrongEditModal')?.style.display === 'flex';
-    if (!isOnForm && !isOnEdit) return;
+    const isCivilActive = document.getElementById('page-civil')?.classList.contains('active');
+    const isOnWrongForm = document.getElementById('wrongStep1')?.style.display !== 'none' && isCivilActive;
+    const isOnWrongEdit = document.getElementById('wrongEditModal')?.style.display === 'flex';
+    const isOnShenlun = isCivilActive && document.getElementById('shenlunForm')?.style.display !== 'none';
+    if (!isOnWrongForm && !isOnWrongEdit && !isOnShenlun) return;
     for (const item of items) {
       if (item.type.startsWith('image/')) {
         const file = item.getAsFile();
         if (!file) continue;
-        if (isOnEdit) handleEditWrongImageFiles([file]);
-        else handleWrongImageFiles([file]);
+        // 优先按用户最近点击的上传区域路由
+        if (lastImageUploadTarget === 'shenlun' && isOnShenlun) {
+          handleShenlunAnswerFiles([file]);
+        } else if (isOnWrongEdit) {
+          handleEditWrongImageFiles([file]);
+        } else if (isOnWrongForm) {
+          handleWrongImageFiles([file]);
+        } else if (isOnShenlun) {
+          handleShenlunAnswerFiles([file]);
+        } else {
+          continue;
+        }
         e.preventDefault();
         break;
       }
@@ -3334,7 +3412,7 @@ function addShenlunPractice() {
     score: fd.get('score') ? parseInt(fd.get('score')) : null,
     topic: fd.get('topic'),
     location: fd.get('location') || '',
-    myAnswer: fd.get('myAnswer') || '',
+    answerImages: [...shenlunAnswerImages],
     reference: fd.get('reference') || '',
     reflection: fd.get('reflection') || '',
     logic: fd.get('logic') || '',
@@ -3344,6 +3422,8 @@ function addShenlunPractice() {
   saveData();
   form.reset();
   setToday();
+  clearShenlunAnswerImages();
+  lastImageUploadTarget = '';
   renderShenlunStats();
   renderShenlunList();
 }
@@ -3367,11 +3447,13 @@ function editShenlunPractice(id) {
   form.score.value = p.score != null ? p.score : '';
   form.topic.value = p.topic || '';
   form.location.value = p.location || '';
-  form.myAnswer.value = p.myAnswer || '';
   form.reference.value = p.reference || '';
   form.reflection.value = p.reflection || '';
   form.logic.value = p.logic || '';
   form.materials.value = p.materials || '';
+  // 加载已有作答图片到预览
+  setShenlunAnswerImages(p.answerImages || []);
+  lastImageUploadTarget = 'shenlun';
   window.scrollTo({ top: document.getElementById('shenlunForm').offsetTop - 100, behavior: 'smooth' });
   // 临时切换保存按钮为更新
   const saveBtn = form.querySelector('button[onclick="addShenlunPractice()"]');
@@ -3401,7 +3483,7 @@ function updateShenlunPractice(id) {
   p.score = fd.get('score') ? parseInt(fd.get('score')) : null;
   p.topic = fd.get('topic');
   p.location = fd.get('location') || '';
-  p.myAnswer = fd.get('myAnswer') || '';
+  p.answerImages = [...shenlunAnswerImages];
   p.reference = fd.get('reference') || '';
   p.reflection = fd.get('reflection') || '';
   p.logic = fd.get('logic') || '';
@@ -3420,6 +3502,8 @@ function resetShenlunForm() {
   const form = document.getElementById('shenlunForm');
   form.reset();
   setToday();
+  clearShenlunAnswerImages();
+  lastImageUploadTarget = '';
   // 恢复按钮文字
   const saveBtn = form.querySelector('button[onclick*="updateShenlunPractice"]');
   if (saveBtn) {
@@ -3429,7 +3513,7 @@ function resetShenlunForm() {
   const resetBtn = form.querySelector('button[onclick*="cancelShenlunEdit"]');
   if (resetBtn) {
     resetBtn.textContent = '重置';
-    resetBtn.setAttribute('onclick', "document.getElementById('shenlunForm').reset();setToday()");
+    resetBtn.setAttribute('onclick', "document.getElementById('shenlunForm').reset();setToday();clearShenlunAnswerImages();lastImageUploadTarget=''");
   }
 }
 
@@ -3497,7 +3581,7 @@ function renderShenlunList() {
       <div id="shenlun-detail-${p.id}" class="shenlun-detail" style="display:none;margin-top:12px;padding:14px;background:rgba(255,255,255,0.6);border-radius:8px;border:1px solid var(--border);">
         ${p.location ? `<div style="margin-bottom:8px;"><b>📍 题目位置：</b>${escapeHtml(p.location)}</div>` : ''}
         <div style="margin-bottom:8px;"><b>📄 题目：</b>${escapeHtml(p.topic)}</div>
-        ${p.myAnswer ? `<div style="margin-bottom:8px;"><b>✏️ 我的作答要点：</b><div style="margin-top:4px;white-space:pre-wrap;">${escapeHtml(p.myAnswer)}</div></div>` : ''}
+        ${(p.answerImages && p.answerImages.length) ? `<div style="margin-bottom:8px;"><b>✏️ 我的作答要点：</b><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;">${p.answerImages.map(src => `<img src="${src}" onclick="viewImage('${src}')" style="width:90px;height:90px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;">`).join('')}</div></div>` : ''}
         ${p.reference ? `<div style="margin-bottom:8px;"><b style="color:#38a169;">✅ 标准答案：</b><div style="margin-top:4px;white-space:pre-wrap;color:#22543d;">${escapeHtml(p.reference)}</div></div>` : ''}
         ${p.reflection ? `<div style="margin-bottom:8px;"><b style="color:#e53e3e;">💭 题目反思：</b><div style="margin-top:4px;white-space:pre-wrap;color:#742a2a;">${escapeHtml(p.reflection)}</div></div>` : ''}
         ${p.logic ? `<div style="margin-bottom:8px;"><b style="color:#805ad5;">🧠 逻辑梳理：</b><div style="margin-top:4px;white-space:pre-wrap;color:#553c9a;">${escapeHtml(p.logic)}</div></div>` : ''}
