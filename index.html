@@ -274,6 +274,100 @@ body {
   padding: 2px 6px;
 }
 
+/* ===== 错题图片上传 ===== */
+.image-upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all .2s;
+  background: var(--bg-light);
+}
+.image-upload-area:hover {
+  border-color: var(--primary-1);
+  background: rgba(102,126,234,.05);
+}
+.image-upload-hint {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 16px 8px;
+}
+.image-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.image-preview-item {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+.image-preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.image-preview-item .remove-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.6);
+  color: #fff;
+  border: none;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wrong-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.wrong-images img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: transform .2s;
+}
+.wrong-images img:hover {
+  transform: scale(1.05);
+  border-color: var(--primary-1);
+}
+/* 图片查看弹窗 */
+.image-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.85);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  cursor: zoom-out;
+}
+.image-modal img {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
 /* ===== 每日打卡项 ===== */
 .plan-item {
   display: flex;
@@ -581,8 +675,18 @@ body {
                 </select>
               </div>
               <div class="form-group full">
-                <label>题目内容 *</label>
-                <textarea name="question" required placeholder="粘贴或输入题目内容（截图可用微信/手机识字后粘贴）" rows="5"></textarea>
+                <label>题目内容 <span style="font-size:12px;color:var(--text-light);">（文字或图片，至少填一项）</span></label>
+                <textarea name="question" id="wrongQuestionText" placeholder="粘贴或输入题目内容；图推题可直接上传图片👇" rows="5"></textarea>
+              </div>
+              <div class="form-group full">
+                <label>题目图片 <span style="font-size:12px;color:var(--text-light);">（图推题/资料分析题可截图粘贴或选择文件）</span></label>
+                <div class="image-upload-area" id="wrongImageUpload">
+                  <div class="image-upload-hint" id="wrongImageHint">
+                    📷 点击此处选择图片，或<span style="color:var(--primary-1);">直接粘贴截图</span>（Ctrl+V）
+                  </div>
+                  <input type="file" id="wrongImageFile" accept="image/*" multiple style="display:none;" onchange="handleWrongImageFiles(this.files)">
+                  <div class="image-preview-list" id="wrongImagePreview"></div>
+                </div>
               </div>
               <div class="form-group">
                 <label>我的答案</label>
@@ -1635,6 +1739,14 @@ body {
       <textarea id="editWrongQuestion" rows="3" style="width:100%;"></textarea>
     </div>
     <div class="form-group">
+      <label>题目图片</label>
+      <div class="image-upload-area" id="editWrongImageUpload" onclick="document.getElementById('editWrongImageFile').click()">
+        <div class="image-upload-hint" id="editWrongImageHint">📷 点击选择图片，或直接粘贴截图（Ctrl+V）</div>
+        <input type="file" id="editWrongImageFile" accept="image/*" multiple style="display:none;" onchange="handleEditWrongImageFiles(this.files)">
+        <div class="image-preview-list" id="editWrongImagePreview"></div>
+      </div>
+    </div>
+    <div class="form-group">
       <label>我的答案</label>
       <input type="text" id="editWrongMyAnswer" style="width:100%;">
     </div>
@@ -2086,11 +2198,154 @@ function updateQuestionSubtypes() {
   }
 }
 
+/* ===== 错题图片上传 ===== */
+let wrongImages = [];      // 录入时的图片数组（base64）
+let editWrongImages = [];  // 编辑时的图片数组
+
+function compressImage(file, maxSize, callback) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      let w = img.width, h = img.height;
+      const maxDim = 1200;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+        else { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      let quality = 0.7;
+      let result = canvas.toDataURL('image/jpeg', quality);
+      while (result.length > maxSize && quality > 0.3) {
+        quality -= 0.1;
+        result = canvas.toDataURL('image/jpeg', quality);
+      }
+      callback(result);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleWrongImageFiles(files) {
+  if (!files || !files.length) return;
+  const maxTotal = 4;
+  Array.from(files).forEach(file => {
+    if (wrongImages.length >= maxTotal) { alert('最多上传 ' + maxTotal + ' 张图片'); return; }
+    if (!file.type.startsWith('image/')) return;
+    compressImage(file, 300000, function(dataUrl) {
+      wrongImages.push(dataUrl);
+      renderWrongImagePreview();
+    });
+  });
+  document.getElementById('wrongImageFile').value = '';
+}
+
+function renderWrongImagePreview() {
+  const el = document.getElementById('wrongImagePreview');
+  const hint = document.getElementById('wrongImageHint');
+  if (!el) return;
+  if (wrongImages.length === 0) {
+    el.innerHTML = '';
+    if (hint) hint.style.display = 'block';
+    return;
+  }
+  if (hint) hint.style.display = 'none';
+  el.innerHTML = wrongImages.map((src, i) =>
+    `<div class="image-preview-item">
+      <img src="${src}" onclick="viewImage('${src}')">
+      <button class="remove-btn" onclick="event.stopPropagation();removeWrongImage(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeWrongImage(idx) {
+  wrongImages.splice(idx, 1);
+  renderWrongImagePreview();
+}
+
+function handleEditWrongImageFiles(files) {
+  if (!files || !files.length) return;
+  const maxTotal = 4;
+  Array.from(files).forEach(file => {
+    if (editWrongImages.length >= maxTotal) { alert('最多上传 ' + maxTotal + ' 张图片'); return; }
+    if (!file.type.startsWith('image/')) return;
+    compressImage(file, 300000, function(dataUrl) {
+      editWrongImages.push(dataUrl);
+      renderEditWrongImagePreview();
+    });
+  });
+  document.getElementById('editWrongImageFile').value = '';
+}
+
+function renderEditWrongImagePreview() {
+  const el = document.getElementById('editWrongImagePreview');
+  const hint = document.getElementById('editWrongImageHint');
+  if (!el) return;
+  if (editWrongImages.length === 0) {
+    el.innerHTML = '';
+    if (hint) hint.style.display = 'block';
+    return;
+  }
+  if (hint) hint.style.display = 'none';
+  el.innerHTML = editWrongImages.map((src, i) =>
+    `<div class="image-preview-item">
+      <img src="${src}" onclick="viewImage('${src}')">
+      <button class="remove-btn" onclick="event.stopPropagation();removeEditWrongImage(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeEditWrongImage(idx) {
+  editWrongImages.splice(idx, 1);
+  renderEditWrongImagePreview();
+}
+
+function viewImage(src) {
+  const modal = document.createElement('div');
+  modal.className = 'image-modal';
+  modal.innerHTML = `<img src="${src}">`;
+  modal.onclick = () => modal.remove();
+  document.body.appendChild(modal);
+}
+
+function initWrongImagePaste() {
+  const uploadArea = document.getElementById('wrongImageUpload');
+  const editArea = document.getElementById('editWrongImageUpload');
+  if (uploadArea) {
+    uploadArea.addEventListener('click', function(e) {
+      if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'IMG')
+        document.getElementById('wrongImageFile').click();
+    });
+  }
+  document.addEventListener('paste', function(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const isOnForm = document.getElementById('wrongStep1')?.style.display !== 'none' &&
+                     document.getElementById('page-civil')?.classList.contains('active');
+    const isOnEdit = document.getElementById('wrongEditModal')?.style.display === 'flex';
+    if (!isOnForm && !isOnEdit) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (!file) continue;
+        if (isOnEdit) handleEditWrongImageFiles([file]);
+        else handleWrongImageFiles([file]);
+        e.preventDefault();
+        break;
+      }
+    }
+  });
+}
+
 function goToStep2() {
   const form = document.getElementById('wrongForm1');
   const fd = new FormData(form);
-  if (!fd.get('date') || !fd.get('module') || !fd.get('question') || !fd.get('correctAnswer')) {
-    alert('请填写必填项：日期、模块、题目内容、正确答案');
+  const hasText = fd.get('question') && fd.get('question').trim();
+  const hasImages = wrongImages.length > 0;
+  if (!fd.get('date') || !fd.get('module') || !fd.get('correctAnswer') || (!hasText && !hasImages)) {
+    alert('请填写必填项：日期、模块、正确答案，题目内容或图片至少填一项');
     return;
   }
   const module = fd.get('module');
@@ -2100,7 +2355,7 @@ function goToStep2() {
   const qType = fd.get('questionType') || '';
 
   // 暂存第一步数据供AI调用
-  _wrongStep1Data = { module, question, myAnswer, correctAnswer, qType };
+  _wrongStep1Data = { module, question, myAnswer, correctAnswer, qType, images: [...wrongImages] };
 
   // 先用模板预填充（作为fallback）
   const analysis = generateAnalysisTemplate(module, qType, question, myAnswer, correctAnswer);
@@ -2133,6 +2388,8 @@ function resetWrongForm() {
   document.getElementById('wrongForm1').reset();
   document.getElementById('wrongForm2').reset();
   selectedErrorTypes = [];
+  wrongImages = [];
+  renderWrongImagePreview();
   document.getElementById('wrongStep1').style.display = 'block';
   document.getElementById('wrongStep2').style.display = 'none';
   document.getElementById('step1Badge').classList.add('active');
@@ -2364,6 +2621,7 @@ function addWrongQuestionFinal() {
     questionType: fd1.get('questionType') || '',
     questionSubtype: fd1.get('questionSubtype') || '',
     question: fd1.get('question'),
+    images: [...wrongImages],
     myAnswer: fd1.get('myAnswer') || '',
     correctAnswer: fd1.get('correctAnswer'),
     errorTypes: [...selectedErrorTypes],
@@ -2441,6 +2699,8 @@ function editWrongQuestion(id) {
   document.getElementById('editWrongAnalysis').value = q.analysis || '';
   document.getElementById('editWrongKnowledgePoint').value = q.knowledgePoint || '';
   document.getElementById('editWrongReflection').value = q.reflection || '';
+  editWrongImages = Array.isArray(q.images) ? [...q.images] : [];
+  renderEditWrongImagePreview();
   const ets = Array.isArray(q.errorTypes) ? q.errorTypes : (q.errorType ? [q.errorType] : []);
   editErrorTypesSelected = [...ets];
   renderEditErrorTypeOptions();
@@ -2488,6 +2748,7 @@ function saveWrongEdit() {
   q.analysis = document.getElementById('editWrongAnalysis').value.trim();
   q.knowledgePoint = document.getElementById('editWrongKnowledgePoint').value.trim();
   q.reflection = document.getElementById('editWrongReflection').value.trim();
+  q.images = [...editWrongImages];
   q.errorTypes = [...editErrorTypesSelected];
   delete q.errorType;
   saveData();
@@ -2579,7 +2840,8 @@ function renderWrongItem(q) {
   const due = isReviewDue(q);
   const errTypes = getErrorTypesOf(q);
   const expanded = wrongExpandIds.includes(q.id);
-  const fullQuestion = q.question || '（无题目）';
+  const hasImages = Array.isArray(q.images) && q.images.length > 0;
+  const fullQuestion = q.question || (hasImages ? '（图片题）' : '（无题目）');
   const preview = fullQuestion.length > 50 ? fullQuestion.slice(0, 50) + '…' : fullQuestion;
   const typeTag = q.questionType
     ? `<span class="tag tag-blue">${escapeHtml(q.questionType)}${q.questionSubtype ? ' · ' + escapeHtml(q.questionSubtype) : ''}</span>`
@@ -2587,6 +2849,7 @@ function renderWrongItem(q) {
   const errTags = errTypes.length > 0
     ? errTypes.map(e => `<span class="tag tag-orange">${escapeHtml(e)}</span>`).join('')
     : '<span class="tag tag-gray">未分类</span>';
+  const imgFlag = hasImages ? `<span class="tag tag-purple">📷 ${q.images.length}张图</span>` : '';
   return `
   <div class="list-item ${due ? 'review-due' : ''} ${expanded ? 'expanded' : ''}">
     <div class="wrong-head" onclick="toggleWrongExpand(${q.id})">
@@ -2594,6 +2857,7 @@ function renderWrongItem(q) {
         <div class="list-title wrong-preview">
           ${typeTag}
           <span class="${expanded ? '' : 'wrong-preview-text'}">${escapeHtml(expanded ? fullQuestion : preview)}</span>
+          ${imgFlag}
           ${!expanded && fullQuestion.length > 50 ? '<span class="wrong-more-hint">👇 点击查看详情</span>' : ''}
         </div>
         <div class="list-meta">
@@ -2608,6 +2872,8 @@ function renderWrongItem(q) {
     </div>
     ${expanded ? `
       <div class="list-body">
+        ${q.question ? `<div style="margin-bottom:8px;white-space:pre-wrap;">${escapeHtml(q.question)}</div>` : ''}
+        ${hasImages ? `<div class="wrong-images">${q.images.map(src => `<img src="${src}" onclick="viewImage('${src}')">`).join('')}</div>` : ''}
         ${q.myAnswer ? `<div>❌ 我的答案：<b>${escapeHtml(q.myAnswer)}</b></div>` : ''}
         <div>✅ 正确答案：<b style="color:#38a169">${escapeHtml(q.correctAnswer)}</b></div>
         <div style="margin-top:6px;">💡 解析：${escapeHtml(q.analysis || '')}</div>
@@ -5206,6 +5472,7 @@ function init() {
   suggestQuestionTypes();
   updateFilterOptions();
   setWrongFormMode('quick');
+  initWrongImagePaste();
   // 设置反思表单默认效率自评为 8 分
   const reviewForm = document.getElementById('reviewForm');
   if (reviewForm && reviewForm.efficiencyRating) reviewForm.efficiencyRating.value = '8';
