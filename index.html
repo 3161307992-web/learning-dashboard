@@ -677,10 +677,7 @@ body {
               <div class="form-group full">
                 <label>题目内容 <span style="font-size:12px;color:var(--text-light);">（文字或图片，至少填一项）</span></label>
                 <textarea name="question" id="wrongQuestionText" placeholder="粘贴或输入题目内容；图推题可直接上传图片👇" rows="5"></textarea>
-              </div>
-              <div class="form-group full">
-                <label>题目图片 <span style="font-size:12px;color:var(--text-light);">（图推题/资料分析题可截图粘贴或选择文件）</span></label>
-                <div class="image-upload-area" id="wrongImageUpload">
+                <div class="image-upload-area" id="wrongImageUpload" style="margin-top:8px;">
                   <div class="image-upload-hint" id="wrongImageHint">
                     📷 点击此处选择图片，或<span style="color:var(--primary-1);">直接粘贴截图</span>（Ctrl+V）
                   </div>
@@ -1737,10 +1734,7 @@ body {
     <div class="form-group">
       <label>题目内容</label>
       <textarea id="editWrongQuestion" rows="3" style="width:100%;"></textarea>
-    </div>
-    <div class="form-group">
-      <label>题目图片</label>
-      <div class="image-upload-area" id="editWrongImageUpload" onclick="document.getElementById('editWrongImageFile').click()">
+      <div class="image-upload-area" id="editWrongImageUpload" onclick="event.stopPropagation();document.getElementById('editWrongImageFile').click()" style="margin-top:8px;">
         <div class="image-upload-hint" id="editWrongImageHint">📷 点击选择图片，或直接粘贴截图（Ctrl+V）</div>
         <input type="file" id="editWrongImageFile" accept="image/*" multiple style="display:none;" onchange="handleEditWrongImageFiles(this.files)">
         <div class="image-preview-list" id="editWrongImagePreview"></div>
