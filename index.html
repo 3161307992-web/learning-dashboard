@@ -928,6 +928,17 @@ body {
           </select>
         </div>
         <div id="shenlunStats" style="margin-bottom:14px;"></div>
+
+        <!-- 申论7天复习区 -->
+        <div class="card" style="background:linear-gradient(135deg,#f0f7ff,#fff);border-left:4px solid #4299e1;margin-bottom:14px;">
+          <div class="card-title">
+            <span><span class="emoji">📅</span>申论复习（每7天一轮）</span>
+            <span class="tag tag-blue" id="shenlunReviewCount">0 篇待复习</span>
+          </div>
+          <p style="font-size:13px;color:var(--text-light);margin-bottom:14px;">每篇申论练习录入后7天需回顾一次，自测模式：先回想答题思路，再看标准答案和反思，标记完成后自动顺延7天。</p>
+          <div id="shenlunReviewArea"></div>
+        </div>
+
         <div id="shenlunList"></div>
       </div>
     </section>
@@ -1868,6 +1879,16 @@ function loadData() {
       }
     });
   }
+  // 迁移申论数据：补全 nextReviewDate 字段（老数据没有）
+  if (Array.isArray(DB.shenlunPractices)) {
+    DB.shenlunPractices.forEach(p => {
+      if (!p.nextReviewDate && p.date) {
+        // 老数据按录入日期 +7 天作为首次复习日；若已过7天则今天待复习
+        const initial = dateOffset(p.date, 7);
+        p.nextReviewDate = initial < todayStr() ? todayStr() : initial;
+      }
+    });
+  }
 }
 function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
@@ -2151,6 +2172,7 @@ function renderCivilPage() {
   renderStudyRecordList();
   renderShenlunStats();
   renderShenlunList();
+  renderShenlunReviewArea();
 }
 function renderCivilStats() {
   const today = todayStr();
@@ -3446,7 +3468,8 @@ function addShenlunPractice() {
     reference: fd.get('reference') || '',
     reflection: fd.get('reflection') || '',
     logic: fd.get('logic') || '',
-    materials: fd.get('materials') || ''
+    materials: fd.get('materials') || '',
+    nextReviewDate: dateOffset(fd.get('date'), 7) // 录入后7天首次复习
   };
   DB.shenlunPractices.push(p);
   saveData();
@@ -3456,6 +3479,7 @@ function addShenlunPractice() {
   lastImageUploadTarget = '';
   renderShenlunStats();
   renderShenlunList();
+  renderShenlunReviewArea();
 }
 
 function deleteShenlunPractice(id) {
@@ -3464,6 +3488,7 @@ function deleteShenlunPractice(id) {
   saveData();
   renderShenlunStats();
   renderShenlunList();
+  renderShenlunReviewArea();
 }
 
 /* ===== 申论编辑 ===== */
@@ -3518,10 +3543,16 @@ function updateShenlunPractice(id) {
   p.reflection = fd.get('reflection') || '';
   p.logic = fd.get('logic') || '';
   p.materials = fd.get('materials') || '';
+  // 录入日期变更时同步重置下次复习日
+  if (p.date !== fd.get('date')) {
+    p.date = fd.get('date');
+    p.nextReviewDate = dateOffset(p.date, 7);
+  }
   saveData();
   resetShenlunForm();
   renderShenlunStats();
   renderShenlunList();
+  renderShenlunReviewArea();
 }
 
 function cancelShenlunEdit() {
@@ -3573,6 +3604,185 @@ function renderShenlunStats() {
   `;
 }
 
+/* ===== 申论7天复习 ===== */
+const SHENLUN_REVIEW_INTERVAL = 7; // 每隔7天复习一次
+let shenlunReviewState = { currentIndex: 0, showAnswers: {}, results: {} };
+
+function isShenlunReviewDue(p) {
+  if (!p || !p.nextReviewDate) return false;
+  return p.nextReviewDate <= todayStr();
+}
+
+function shenlunReviewBadge(p) {
+  if (!p.nextReviewDate) return '';
+  const due = isShenlunReviewDue(p);
+  return due
+    ? `<span class="tag tag-red">📅 今日待复习</span>`
+    : `<span class="tag tag-blue">下次复习 ${p.nextReviewDate}</span>`;
+}
+
+function getShenlunDueReviews() {
+  return DB.shenlunPractices
+    .filter(p => isShenlunReviewDue(p))
+    .sort((a, b) => (a.nextReviewDate || '').localeCompare(b.nextReviewDate || ''));
+}
+
+function renderShenlunReviewArea() {
+  const dueReviews = getShenlunDueReviews();
+  const total = dueReviews.length;
+  const countEl = document.getElementById('shenlunReviewCount');
+  if (countEl) countEl.textContent = total + ' 篇待复习';
+  const el = document.getElementById('shenlunReviewArea');
+  if (!el) return;
+
+  if (total === 0) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="emoji">✨</div>
+        <div>今天没有需要复习的申论，继续积累吧！</div>
+      </div>`;
+    return;
+  }
+
+  const state = shenlunReviewState;
+  // 越界保护
+  if (state.currentIndex >= total) {
+    const reviewed = Object.keys(state.results).length;
+    el.innerHTML = `
+      <div style="text-align:center;padding:18px 0;">
+        <div style="font-size:40px;margin-bottom:8px;">🎉</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px;">本次申论复习完成！</div>
+        <div style="font-size:13px;color:var(--text-light);margin-bottom:14px;">已回顾 ${reviewed} 篇，下次复习日期已自动顺延7天</div>
+        <button class="btn btn-outline btn-sm" onclick="resetShenlunReview()">📋 查看全部待复习</button>
+      </div>`;
+    return;
+  }
+
+  const p = dueReviews[state.currentIndex];
+  const showAns = !!state.showAnswers[p.id];
+  const result = state.results[p.id];
+  const typeColors = {
+    '归纳概括': 'tag-blue', '综合分析': 'tag-purple', '提出对策': 'tag-green',
+    '贯彻执行': 'tag-orange', '大作文': 'tag-red'
+  };
+
+  el.innerHTML = `
+    <div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+      <span>
+        <span class="tag ${typeColors[p.questionType] || 'tag-gray'}">${p.questionType}</span>
+        <span class="tag tag-red">到期日 ${p.nextReviewDate}</span>
+      </span>
+      <span style="color:var(--text-light);">第 ${state.currentIndex + 1} / ${total} 篇</span>
+    </div>
+
+    <div style="background:#fff;border-radius:10px;padding:14px;margin-bottom:10px;box-shadow:var(--shadow);">
+      <div style="font-size:13px;color:var(--text-light);margin-bottom:4px;">📄 题目</div>
+      <div style="font-size:14px;line-height:1.8;white-space:pre-wrap;">${escapeHtml(p.topic || '')}</div>
+      ${p.location ? `<div style="margin-top:6px;font-size:12px;color:var(--text-light);">📍 ${escapeHtml(p.location)}</div>` : ''}
+    </div>
+
+    ${showAns ? `
+      ${(p.answerImages && p.answerImages.length) ? `<div style="background:#fffaf0;border-radius:10px;padding:14px;margin-bottom:10px;border-left:3px solid #ed8936;">
+        <div style="font-size:13px;color:#b7791f;margin-bottom:6px;">✏️ 我的作答要点（回顾）</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">${p.answerImages.map(src => `<img src="${src}" onclick="viewImage('${src}')" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;">`).join('')}</div>
+      </div>` : ''}
+      <div style="background:#f0fff4;border-radius:10px;padding:14px;margin-bottom:10px;border-left:3px solid #38b2ac;">
+        <div style="font-size:13px;color:#319795;margin-bottom:6px;">✅ 标准答案</div>
+        <div style="font-size:13px;line-height:1.7;white-space:pre-wrap;">${escapeHtml(p.reference || '（未填写）')}</div>
+      </div>
+      ${p.reflection ? `<div style="background:#fff5f5;border-radius:10px;padding:14px;margin-bottom:10px;border-left:3px solid #e53e3e;">
+        <div style="font-size:13px;color:#c53030;margin-bottom:6px;">💭 当时的反思</div>
+        <div style="font-size:13px;line-height:1.7;white-space:pre-wrap;">${escapeHtml(p.reflection)}</div>
+      </div>` : ''}
+      ${p.materials ? `<div style="background:#fffbeb;border-radius:10px;padding:14px;margin-bottom:10px;border-left:3px solid #b7791f;">
+        <div style="font-size:13px;color:#b7791f;margin-bottom:6px;">📌 素材积累</div>
+        <div style="font-size:13px;line-height:1.7;white-space:pre-wrap;">${escapeHtml(p.materials)}</div>
+      </div>` : ''}
+
+      ${result ? `
+        <div style="text-align:center;padding:8px;margin-bottom:10px;border-radius:8px;background:#e6fffa;color:#234e52;">
+          ✅ 已标记完成，下次复习：${p.nextReviewDate}
+        </div>
+      ` : `
+        <div style="display:flex;gap:10px;margin-bottom:10px;">
+          <button class="btn btn-success" style="flex:1;" onclick="markShenlunReviewDone(${p.id})">✅ 已回顾，顺延7天</button>
+        </div>
+      `}
+    ` : `
+      <div style="background:#fffaf0;border-radius:10px;padding:14px;margin-bottom:10px;border-left:3px solid #ed8936;text-align:center;">
+        <div style="font-size:13px;color:#b7791f;margin-bottom:8px;">🤔 先回想自己的答题思路，再点开对照标准答案</div>
+        <button class="btn btn-primary" onclick="toggleShenlunReviewAnswer()">👁️ 显示答案与反思</button>
+      </div>
+    `}
+
+    <div style="display:flex;justify-content:space-between;gap:10px;">
+      <button class="btn btn-outline btn-sm" onclick="prevShenlunReview()" ${state.currentIndex === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''}>⬅️ 上一篇</button>
+      <button class="btn btn-outline btn-sm" onclick="skipShenlunReview()">⏭️ 跳过</button>
+      <button class="btn btn-outline btn-sm" onclick="nextShenlunReview()" ${state.currentIndex >= total - 1 ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''}>下一篇 ➡️</button>
+    </div>
+
+    <div style="margin-top:10px;">
+      <div style="display:flex;gap:2px;">
+        ${dueReviews.map((item, i) => {
+          const r = state.results[item.id];
+          let bg = '#e2e8f0';
+          if (i === state.currentIndex && !state.showAnswers[item.id]) bg = '#4299e1';
+          else if (i === state.currentIndex && state.showAnswers[item.id]) bg = '#3182ce';
+          else if (r === 'done') bg = '#48bb78';
+          return `<div style="flex:1;height:6px;border-radius:3px;background:${bg};"></div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function toggleShenlunReviewAnswer() {
+  const dueReviews = getShenlunDueReviews();
+  const p = dueReviews[shenlunReviewState.currentIndex];
+  if (p) {
+    shenlunReviewState.showAnswers[p.id] = true;
+    renderShenlunReviewArea();
+  }
+}
+
+function markShenlunReviewDone(id) {
+  const p = DB.shenlunPractices.find(x => x.id === id);
+  if (!p) return;
+  p.nextReviewDate = dateOffset(todayStr(), SHENLUN_REVIEW_INTERVAL);
+  shenlunReviewState.results[id] = 'done';
+  saveData();
+  renderShenlunReviewArea();
+  renderShenlunList(); // 同步列表里的复习徽章
+}
+
+function nextShenlunReview() {
+  const dueReviews = getShenlunDueReviews();
+  if (shenlunReviewState.currentIndex < dueReviews.length - 1) {
+    shenlunReviewState.currentIndex++;
+    renderShenlunReviewArea();
+  }
+}
+
+function prevShenlunReview() {
+  if (shenlunReviewState.currentIndex > 0) {
+    shenlunReviewState.currentIndex--;
+    renderShenlunReviewArea();
+  }
+}
+
+function skipShenlunReview() {
+  const dueReviews = getShenlunDueReviews();
+  if (shenlunReviewState.currentIndex < dueReviews.length - 1) {
+    shenlunReviewState.currentIndex++;
+    renderShenlunReviewArea();
+  }
+}
+
+function resetShenlunReview() {
+  shenlunReviewState = { currentIndex: 0, showAnswers: {}, results: {} };
+  renderShenlunReviewArea();
+}
+
 function renderShenlunList() {
   const filter = document.getElementById('shenlunFilter')?.value || '';
   let list = DB.shenlunPractices.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -3595,6 +3805,7 @@ function renderShenlunList() {
               ${p.date}
               <span class="tag ${typeColors[p.questionType] || 'tag-gray'}">${p.questionType}</span>
               ${p.score != null ? `<span class="tag tag-gray">自评 ${p.score}分</span>` : ''}
+              ${shenlunReviewBadge(p)}
             </div>
             <div class="list-meta">
               <span>⏱️ ${p.duration}分钟</span>
@@ -5237,10 +5448,12 @@ function generateSampleData() {
     { offset: 3, questionType: '大作文', duration: 60, score: 72, topic: '以"乡村振兴中的文化传承"为题写一篇议论文。（40分）', myAnswer: '围绕文化传承重要性展开，举了2个例子', reference: '论点明确但论据不够丰富，缺乏政策高度，结尾升华不足', materials: '乡村振兴战略、文化自信、乡风文明、留得住乡愁' },
   ];
   shenlunSamples.forEach(s => {
+    const date = daysAgoStr(s.offset);
     DB.shenlunPractices.push({
-      id: uid(), date: daysAgoStr(s.offset), questionType: s.questionType,
+      id: uid(), date, questionType: s.questionType,
       duration: s.duration, score: s.score, topic: s.topic,
-      myAnswer: s.myAnswer, reference: s.reference, materials: s.materials
+      myAnswer: s.myAnswer, reference: s.reference, materials: s.materials,
+      nextReviewDate: dateOffset(date, 7) // 录入后7天首次复习
     });
   });
 
