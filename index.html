@@ -241,6 +241,46 @@ body {
 .list-item.completed { opacity: 0.6; }
 .list-item.completed .list-title { text-decoration: line-through; }
 
+/* ===== 每日打卡项 ===== */
+.plan-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+}
+.plan-item:hover { box-shadow: var(--shadow); }
+.plan-item.done { background: var(--bg-secondary); }
+.plan-item.done .plan-text { text-decoration: line-through; color: var(--text-light); }
+.plan-check { display: flex; align-items: center; gap: 10px; flex: 1; cursor: pointer; min-width: 0; }
+.plan-check input { width: 20px; height: 20px; accent-color: var(--primary-1); cursor: pointer; flex-shrink: 0; }
+.plan-text { flex: 1; word-break: break-word; font-size: 14px; }
+.plan-cat {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-del {
+  background: none;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.btn-del:hover { background: #fee; color: #e53e3e; }
+
 /* 复选框 */
 .checkbox-wrap { display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .checkbox-wrap input { width: 18px; height: 18px; accent-color: var(--primary-1); cursor: pointer; }
@@ -439,6 +479,7 @@ body {
       <div class="nav-item" data-page="putonghua" onclick="switchPage('putonghua')"><span class="icon">🎙️</span>普通话课堂</div>
       <div class="nav-item" data-page="exercise" onclick="switchPage('exercise')"><span class="icon">🏊</span>运动游泳</div>
       <div class="nav-item" data-page="review" onclick="switchPage('review')"><span class="icon">📝</span>日常反思</div>
+      <div class="nav-item" data-page="plan" onclick="switchPage('plan')"><span class="icon">✅</span>每日打卡</div>
       <div class="nav-item" data-page="books" onclick="switchPage('books')"><span class="icon">📖</span>图书阅读</div>
       <div class="nav-item" data-page="daily" onclick="switchPage('daily')"><span class="icon">📰</span>每日考情</div>
     </nav>
@@ -1244,7 +1285,57 @@ body {
       </div>
     </section>
 
-    <!-- ========== 6. 图书阅读 ========== -->
+    <!-- ========== 6. 每日打卡 ========== -->
+    <section class="page" id="page-plan">
+      <div class="page-title"><span class="emoji">✅</span>每日打卡</div>
+      <div class="stats-grid" id="planStats"></div>
+
+      <!-- 今日计划 -->
+      <div class="card">
+        <div class="card-title">
+          <span><span class="emoji">📋</span>今日计划</span>
+          <button class="btn btn-outline btn-sm" onclick="copyYesterdayPlan()">📋 复制昨日计划</button>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+          <div class="form-group" style="margin:0;">
+            <label>日期</label>
+            <input type="date" id="planDate" onchange="loadPlanByDate()">
+          </div>
+          <span style="font-size:13px;color:var(--text-secondary);" id="planCompletionRate"></span>
+        </div>
+
+        <!-- 添加新计划项 -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <input type="text" id="planItemInput" placeholder="输入要完成的计划，回车或点添加" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+          <select id="planCategory" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+            <option value="📚 学习">📚 学习</option>
+            <option value="💼 工作">💼 工作</option>
+            <option value="🏃 运动">🏃 运动</option>
+            <option value="📖 阅读">📖 阅读</option>
+            <option value="🏠 生活">🏠 生活</option>
+            <option value="_OTHER_">🏷️ 其他</option>
+          </select>
+          <button class="btn btn-primary" onclick="addPlanItem()">➕ 添加</button>
+        </div>
+
+        <!-- 计划清单 -->
+        <div id="planItemsList"></div>
+      </div>
+
+      <!-- 本周打卡热力 -->
+      <div class="card">
+        <div class="card-title"><span><span class="emoji">🔥</span>本周打卡情况</span></div>
+        <div id="planWeekView"></div>
+      </div>
+
+      <!-- 历史记录 -->
+      <div class="card">
+        <div class="card-title"><span><span class="emoji">📅</span>历史计划</span></div>
+        <div id="planHistoryList"></div>
+      </div>
+    </section>
+
+    <!-- ========== 7. 图书阅读 ========== -->
     <section class="page" id="page-books">
       <div class="page-title"><span class="emoji">📖</span>图书阅读</div>
 
@@ -1452,6 +1543,7 @@ let DB = {
   exercises: [],
   exerciseGoal: { weeklyCount: 3, weeklyMinutes: 180 },
   reviews: [],
+  plans: [],
   books: [],
   readingNotes: [],
   dailyNews: {},
@@ -1467,7 +1559,7 @@ function loadData() {
   // 补全缺失字段
   const keys = ['wrongQuestions','studyRecords','shenlunPractices','englishStudents','englishLessons',
     'speakingTopics','englishHomework','putonghuaCourses','students','exercises',
-    'reviews','books','readingNotes'];
+    'reviews','plans','books','readingNotes'];
   keys.forEach(k => { if (!Array.isArray(DB[k])) DB[k] = []; });
   if (!DB.thinkProgress || typeof DB.thinkProgress !== 'object') {
     DB.thinkProgress = { grade6: {}, grade7: {} };
@@ -1689,7 +1781,8 @@ function destroyAllCharts() {
 /* ===================== 页面切换 ===================== */
 const PAGE_TITLES = {
   civil: '公务员学习', english: '英语课堂', putonghua: '普通话课堂',
-  exercise: '运动游泳', review: '日常反思', books: '图书阅读', daily: '每日考情'
+  exercise: '运动游泳', review: '日常反思', plan: '每日打卡',
+  books: '图书阅读', daily: '每日考情'
 };
 function switchPage(page) {
   destroyAllCharts();
@@ -1711,6 +1804,7 @@ function renderPage(page) {
     case 'putonghua': renderPutonghuaPage(); break;
     case 'exercise': renderExercisePage(); break;
     case 'review': renderReviewPage(); break;
+    case 'plan': renderPlanPage(); break;
     case 'books': renderBooksPage(); break;
     case 'daily': renderDailyPage(); break;
   }
@@ -3696,7 +3790,252 @@ function renderReviewCharts() {
   }
 }
 
-/* ===================== 6. 图书阅读 ===================== */
+/* ===================== 6. 每日打卡 ===================== */
+function renderPlanPage() {
+  if (!document.getElementById('planDate').value) {
+    document.getElementById('planDate').value = todayStr();
+  }
+  renderPlanStats();
+  renderPlanItems();
+  renderPlanWeekView();
+  renderPlanHistory();
+  // 绑定回车添加
+  const input = document.getElementById('planItemInput');
+  if (!input._bound) {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); addPlanItem(); }
+    });
+    input._bound = true;
+  }
+}
+
+function getCurrentPlan(createIfMissing) {
+  const date = document.getElementById('planDate').value || todayStr();
+  let plan = DB.plans.find(p => p.date === date);
+  if (!plan && createIfMissing) {
+    plan = { date, items: [], createdAt: Date.now() };
+    DB.plans.push(plan);
+  }
+  return plan;
+}
+
+function addPlanItem() {
+  const input = document.getElementById('planItemInput');
+  const text = input.value.trim();
+  if (!text) { alert('请输入计划内容'); return; }
+  let cat = document.getElementById('planCategory').value;
+  if (cat === '_OTHER_') cat = '📌 其他';
+  const plan = getCurrentPlan(true);
+  plan.items.push({ text, category: cat, done: false, createdAt: Date.now() });
+  // 修正未定义字段
+  if (plan.items.some(i => i.done === undefined)) {
+    plan.items.forEach(i => { if (i.done === undefined) i.done = false; });
+  }
+  input.value = '';
+  saveData();
+  renderPlanItems();
+  renderPlanStats();
+  renderPlanWeekView();
+  renderPlanHistory();
+}
+
+function togglePlanItem(idx) {
+  const plan = getCurrentPlan(true);
+  if (plan && plan.items[idx]) {
+    plan.items[idx].done = !plan.items[idx].done;
+    saveData();
+    renderPlanItems();
+    renderPlanStats();
+    renderPlanWeekView();
+  }
+}
+
+function deletePlanItem(idx) {
+  const plan = getCurrentPlan(false);
+  if (!plan || !plan.items[idx]) return;
+  if (!confirm('删除这条计划？')) return;
+  plan.items.splice(idx, 1);
+  if (plan.items.length === 0) {
+    DB.plans = DB.plans.filter(p => p.date !== plan.date);
+  }
+  saveData();
+  renderPlanItems();
+  renderPlanStats();
+  renderPlanWeekView();
+  renderPlanHistory();
+}
+
+function copyYesterdayPlan() {
+  const curDate = document.getElementById('planDate').value || todayStr();
+  const d = new Date(curDate);
+  d.setDate(d.getDate() - 1);
+  const yDate = d.toISOString().slice(0, 10);
+  const yPlan = DB.plans.find(p => p.date === yDate);
+  if (!yPlan || !yPlan.items || yPlan.items.length === 0) {
+    alert('昨天没有计划可复制');
+    return;
+  }
+  const cur = getCurrentPlan(true);
+  yPlan.items.forEach(it => {
+    if (!cur.items.some(i => i.text === it.text)) {
+      cur.items.push({ text: it.text, category: it.category || '📌 其他', done: false, createdAt: Date.now() });
+    }
+  });
+  saveData();
+  renderPlanItems();
+  renderPlanStats();
+  renderPlanWeekView();
+  renderPlanHistory();
+  alert(`已复制昨天的 ${yPlan.items.length} 条计划`);
+}
+
+function loadPlanByDate() {
+  renderPlanItems();
+  renderPlanStats();
+  renderPlanWeekView();
+  renderPlanHistory();
+}
+
+function renderPlanItems() {
+  const plan = getCurrentPlan(false);
+  const wrap = document.getElementById('planItemsList');
+  const rateEl = document.getElementById('planCompletionRate');
+  if (!plan || plan.items.length === 0) {
+    wrap.innerHTML = '<div class="empty-state"><div class="emoji">📝</div><div>今天还没有计划，添加一条开始打卡吧！</div></div>';
+    rateEl.textContent = '';
+    return;
+  }
+  const done = plan.items.filter(i => i.done).length;
+  const total = plan.items.length;
+  const rate = total > 0 ? Math.round(done / total * 100) : 0;
+  rateEl.textContent = `完成 ${done}/${total}（${rate}%）`;
+  wrap.innerHTML = plan.items.map((it, idx) => {
+    const checked = it.done ? 'checked' : '';
+    const cls = it.done ? 'plan-item done' : 'plan-item';
+    const cat = it.category || '📌 其他';
+    return `
+      <div class="${cls}">
+        <label class="plan-check">
+          <input type="checkbox" ${checked} onchange="togglePlanItem(${idx})">
+          <span class="plan-text">${escapeHtml(it.text)}</span>
+        </label>
+        <span class="plan-cat">${escapeHtml(cat)}</span>
+        <button class="btn-del" onclick="deletePlanItem(${idx})" title="删除">✕</button>
+      </div>`;
+  }).join('');
+}
+
+function renderPlanStats() {
+  const today = todayStr();
+  const todayPlan = DB.plans.find(p => p.date === today);
+  const todayDone = todayPlan ? todayPlan.items.filter(i => i.done).length : 0;
+  const todayTotal = todayPlan ? todayPlan.items.length : 0;
+  const todayRate = todayTotal > 0 ? Math.round(todayDone / todayTotal * 100) : 0;
+
+  // 近7天
+  const last7 = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().slice(0, 10);
+    const p = DB.plans.find(x => x.date === ds);
+    const t = p ? p.items.length : 0;
+    const dn = p ? p.items.filter(x => x.done).length : 0;
+    last7.push({ date: ds, total: t, done: dn });
+  }
+  const total7 = last7.reduce((s, x) => s + x.total, 0);
+  const done7 = last7.reduce((s, x) => s + x.done, 0);
+  const rate7 = total7 > 0 ? Math.round(done7 / total7 * 100) : 0;
+
+  // 连续打卡天数（有计划且有完成）
+  let streak = 0;
+  for (let i = 0; i < 60; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().slice(0, 10);
+    const p = DB.plans.find(x => x.date === ds);
+    if (p && p.items.length > 0 && p.items.some(x => x.done)) streak++;
+    else if (i > 0) break;
+  }
+
+  document.getElementById('planStats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">今日完成</div><div class="stat-value">${todayDone}/${todayTotal}</div><div class="stat-sub">完成率 ${todayRate}%</div></div>
+    <div class="stat-card"><div class="stat-label">近7天完成</div><div class="stat-value">${done7}/${total7}</div><div class="stat-sub">完成率 ${rate7}%</div></div>
+    <div class="stat-card"><div class="stat-label">连续打卡</div><div class="stat-value">${streak} 天</div><div class="stat-sub">有计划且有完成</div></div>
+    <div class="stat-card"><div class="stat-label">总计划数</div><div class="stat-value">${DB.plans.length}</div><div class="stat-sub">天</div></div>
+  `;
+}
+
+function renderPlanWeekView() {
+  const wrap = document.getElementById('planWeekView');
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().slice(0, 10);
+    const p = DB.plans.find(x => x.date === ds);
+    const total = p ? p.items.length : 0;
+    const done = p ? p.items.filter(x => x.done).length : 0;
+    const rate = total > 0 ? done / total : 0;
+    days.push({ date: ds, total, done, rate, weekday: ['日','一','二','三','四','五','六'][d.getDay()] });
+  }
+  wrap.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;">` + days.map(d => {
+    let bg = 'var(--bg-secondary)';
+    let txt = '无计划';
+    if (d.total > 0) {
+      if (d.rate >= 1) { bg = '#10b981'; txt = '全完成'; }
+      else if (d.rate >= 0.5) { bg = '#f59e0b'; txt = `${d.done}/${d.total}`; }
+      else { bg = '#ef4444'; txt = `${d.done}/${d.total}`; }
+    }
+    const isToday = d.date === todayStr();
+    return `
+      <div style="flex:1;min-width:70px;text-align:center;border:1px solid var(--border);border-radius:8px;overflow:hidden;${isToday ? 'box-shadow:0 0 0 2px var(--primary);' : ''}">
+        <div style="padding:6px;font-size:12px;color:var(--text-secondary);background:var(--bg-secondary);">周${d.weekday}${isToday ? '·今' : ''}</div>
+        <div style="padding:14px 6px;background:${bg};color:#fff;font-weight:700;font-size:14px;min-height:48px;display:flex;align-items:center;justify-content:center;">${txt}</div>
+        <div style="padding:4px;font-size:11px;color:var(--text-light);">${d.date.slice(5)}</div>
+      </div>`;
+  }).join('') + `</div>
+  <p style="font-size:12px;color:var(--text-light);margin-top:10px;">颜色：🟢全完成 / 🟡完成过半 / 🔴完成不足 / 灰色无计划</p>`;
+}
+
+function renderPlanHistory() {
+  const wrap = document.getElementById('planHistoryList');
+  const sorted = [...DB.plans].sort((a, b) => b.date.localeCompare(a.date));
+  if (sorted.length === 0) {
+    wrap.innerHTML = '<div class="empty-state"><div class="emoji">📅</div><div>暂无历史计划</div></div>';
+    return;
+  }
+  wrap.innerHTML = sorted.slice(0, 30).map(p => {
+    const done = p.items.filter(i => i.done).length;
+    const total = p.items.length;
+    const rate = total > 0 ? Math.round(done / total * 100) : 0;
+    const barColor = rate >= 80 ? '#10b981' : rate >= 50 ? '#f59e0b' : '#ef4444';
+    return `
+      <div class="list-item">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+          <div style="font-weight:700;">📅 ${escapeHtml(p.date)}</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-size:13px;color:var(--text-secondary);">${done}/${total} · ${rate}%</span>
+            <button class="btn btn-outline btn-sm" onclick="loadHistoryPlan('${p.date}')">查看</button>
+          </div>
+        </div>
+        <div style="height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden;margin-bottom:8px;">
+          <div style="width:${rate}%;height:100%;background:${barColor};"></div>
+        </div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;">
+          ${p.items.map(i => `${i.done ? '✅' : '⬜'} ${escapeHtml(i.text)}`).join('<br>')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function loadHistoryPlan(date) {
+  document.getElementById('planDate').value = date;
+  loadPlanByDate();
+  document.getElementById('planItemsList').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ===================== 7. 图书阅读 ===================== */
 function renderBooksPage() {
   renderBookStats();
   renderBookList();
