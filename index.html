@@ -3044,7 +3044,7 @@ function updateToggleAllBtn() {
   btn.textContent = allExpanded ? '🔼 全部收起' : '🔽 全部展开';
 }
 /* ===== 今日复习自测系统 ===== */
-let selfTestState = { currentIndex: 0, showAnswer: false, results: {} };
+let selfTestState = { currentIndex: 0, showAnswers: {}, results: {} };
 
 function renderSelfTestArea() {
   const dueReviews = DB.wrongQuestions.filter(isReviewDue).sort((a,b) => (a.nextReviewDate||'').localeCompare(b.nextReviewDate||''));
@@ -3108,7 +3108,7 @@ function renderSelfTestArea() {
       <div style="font-size:14px;line-height:1.8;white-space:pre-wrap;">${escapeHtml(q.question || '')}</div>
     </div>
 
-    ${state.showAnswer ? `
+    ${state.showAnswers[q.id] ? `
       <div style="background:#f0fff4;border-radius:10px;padding:16px;margin-bottom:12px;border-left:3px solid #38b2ac;">
         <div style="font-size:13px;color:#319795;margin-bottom:6px;">✅ 正确答案：${escapeHtml(q.correctAnswer || '')}</div>
         <div style="font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap;">${escapeHtml(q.analysis || '')}</div>
@@ -3144,8 +3144,8 @@ function renderSelfTestArea() {
         ${dueReviews.map((item, i) => {
           const r = state.results[item.id];
           let bg = '#e2e8f0';
-          if (i === state.currentIndex && !state.showAnswer) bg = '#667eea';
-          else if (i === state.currentIndex && state.showAnswer) bg = '#764ba2';
+          if (i === state.currentIndex && !state.showAnswers[item.id]) bg = '#667eea';
+          else if (i === state.currentIndex && state.showAnswers[item.id]) bg = '#764ba2';
           else if (r === 'correct') bg = '#48bb78';
           else if (r === 'wrong') bg = '#f56565';
           return `<div style="flex:1;height:6px;border-radius:3px;background:${bg};"></div>`;
@@ -3156,8 +3156,12 @@ function renderSelfTestArea() {
 }
 
 function toggleShowAnswer() {
-  selfTestState.showAnswer = true;
-  renderSelfTestArea();
+  const dueReviews = DB.wrongQuestions.filter(isReviewDue).sort((a,b) => (a.nextReviewDate||'').localeCompare(b.nextReviewDate||''));
+  const q = dueReviews[selfTestState.currentIndex];
+  if (q) {
+    selfTestState.showAnswers[q.id] = true;
+    renderSelfTestArea();
+  }
 }
 
 function markReviewResult(id, result) {
@@ -3190,7 +3194,6 @@ function nextReviewQuestion() {
   const dueReviews = DB.wrongQuestions.filter(isReviewDue).sort((a,b) => (a.nextReviewDate||'').localeCompare(b.nextReviewDate||''));
   if (selfTestState.currentIndex < dueReviews.length - 1) {
     selfTestState.currentIndex++;
-    selfTestState.showAnswer = false;
     renderSelfTestArea();
   }
 }
@@ -3198,7 +3201,6 @@ function nextReviewQuestion() {
 function prevReviewQuestion() {
   if (selfTestState.currentIndex > 0) {
     selfTestState.currentIndex--;
-    selfTestState.showAnswer = false;
     renderSelfTestArea();
   }
 }
@@ -3207,13 +3209,12 @@ function skipReviewQuestion(id) {
   const dueReviews = DB.wrongQuestions.filter(isReviewDue).sort((a,b) => (a.nextReviewDate||'').localeCompare(b.nextReviewDate||''));
   if (selfTestState.currentIndex < dueReviews.length - 1) {
     selfTestState.currentIndex++;
-    selfTestState.showAnswer = false;
     renderSelfTestArea();
   }
 }
 
 function resetSelfTest() {
-  selfTestState = { currentIndex: 0, showAnswer: false, results: {} };
+  selfTestState = { currentIndex: 0, showAnswers: {}, results: {} };
   renderSelfTestArea();
 }
 
