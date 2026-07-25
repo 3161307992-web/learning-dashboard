@@ -241,6 +241,39 @@ body {
 .list-item.completed { opacity: 0.6; }
 .list-item.completed .list-title { text-decoration: line-through; }
 
+/* ===== 错题折叠列表 ===== */
+.wrong-head {
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  user-select: none;
+}
+.wrong-head:hover .wrong-toggle-icon { color: var(--primary); }
+.wrong-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+.wrong-preview-text {
+  color: var(--text);
+}
+.wrong-more-hint {
+  font-size: 11px;
+  color: var(--text-light);
+  font-weight: 400;
+  margin-left: 4px;
+}
+.wrong-toggle-icon {
+  font-size: 14px;
+  color: var(--text-light);
+  flex-shrink: 0;
+  padding: 2px 6px;
+}
+
 /* ===== 每日打卡项 ===== */
 .plan-item {
   display: flex;
@@ -607,7 +640,13 @@ body {
       </div>
 
       <div class="card">
-        <div class="card-title"><span><span class="emoji">📝</span>错题列表</span></div>
+        <div class="card-title">
+          <span><span class="emoji">📝</span>错题列表</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="wrongListCount" style="font-size:12px;color:var(--text-light);"></span>
+            <button class="btn btn-outline btn-sm" onclick="toggleAllWrongExpand()" id="btnToggleAllWrong">🔽 全部展开</button>
+          </div>
+        </div>
         <div class="filter-bar">
           <select id="wrongFilterModule" onchange="renderWrongList()">
             <option value="">全部模块</option>
@@ -1550,6 +1589,7 @@ let DB = {
   dailyQuotes: {}
 };
 let charts = {};
+let wrongExpandIds = []; // 错题列表展开项 id 列表
 
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -2259,29 +2299,49 @@ function renderWrongList() {
   else if (sRev === 'done') list = list.filter(q => (q.reviewStage||0) >= REVIEW_INTERVALS.length);
   else if (sRev === 'pending') list = list.filter(q => !isReviewDue(q) && (q.reviewStage||0) < REVIEW_INTERVALS.length);
   const el = document.getElementById('wrongList');
+  const countEl = document.getElementById('wrongListCount');
+  if (countEl) countEl.textContent = `共 ${list.length} 条`;
+  // 清理已不存在的展开状态
+  wrongExpandIds = wrongExpandIds.filter(id => list.some(q => q.id === id));
+  updateToggleAllBtn();
   if (list.length === 0) {
     el.innerHTML = '<div class="empty-state"><div class="emoji">📭</div><div>暂无错题记录</div></div>';
     return;
   }
-  el.innerHTML = list.map(q => {
-    const stage = reviewStageLabel(q);
-    const due = isReviewDue(q);
-    const errTypeLabel = q.errorType || '未分类';
-    return `
-    <div class="list-item ${due ? 'review-due' : ''}">
-      <div class="list-header">
-        <div style="flex:1;">
-          <div class="list-title">${escapeHtml(q.question || '（无题目）')}</div>
-          <div class="list-meta">
-            <span>${q.date}</span>
-            <span class="tag tag-gray">${q.module}</span>
-            ${q.questionType ? `<span class="tag tag-blue">${q.questionType}</span>` : ''}
-            <span class="tag tag-orange">${errTypeLabel}</span>
-            <span class="tag ${stage.cls}">${stage.text}</span>
-            ${due ? '<span class="tag tag-red">今日待复习</span>' : ''}
-          </div>
+  el.innerHTML = list.map(q => renderWrongItem(q)).join('');
+}
+
+function renderWrongItem(q) {
+  const stage = reviewStageLabel(q);
+  const due = isReviewDue(q);
+  const errTypeLabel = q.errorType || '未分类';
+  const expanded = wrongExpandIds.includes(q.id);
+  const fullQuestion = q.question || '（无题目）';
+  const preview = fullQuestion.length > 50 ? fullQuestion.slice(0, 50) + '…' : fullQuestion;
+  // 题型标签优先展示
+  const typeTag = q.questionType
+    ? `<span class="tag tag-blue">${escapeHtml(q.questionType)}</span>`
+    : `<span class="tag tag-gray">${escapeHtml(q.module || '')}</span>`;
+  return `
+  <div class="list-item ${due ? 'review-due' : ''} ${expanded ? 'expanded' : ''}">
+    <div class="wrong-head" onclick="toggleWrongExpand(${q.id})">
+      <div style="flex:1;min-width:0;">
+        <div class="list-title wrong-preview">
+          ${typeTag}
+          <span class="${expanded ? '' : 'wrong-preview-text'}">${escapeHtml(expanded ? fullQuestion : preview)}</span>
+          ${!expanded && fullQuestion.length > 50 ? '<span class="wrong-more-hint">👇 点击查看详情</span>' : ''}
+        </div>
+        <div class="list-meta">
+          <span>${q.date}</span>
+          ${q.questionType ? `<span class="tag tag-gray">${escapeHtml(q.module)}</span>` : ''}
+          <span class="tag tag-orange">${errTypeLabel}</span>
+          <span class="tag ${stage.cls}">${stage.text}</span>
+          ${due ? '<span class="tag tag-red">今日待复习</span>' : ''}
         </div>
       </div>
+      <span class="wrong-toggle-icon">${expanded ? '🔼' : '🔽'}</span>
+    </div>
+    ${expanded ? `
       <div class="list-body">
         ${q.myAnswer ? `<div>❌ 我的答案：<b>${escapeHtml(q.myAnswer)}</b></div>` : ''}
         <div>✅ 正确答案：<b style="color:#38a169">${escapeHtml(q.correctAnswer)}</b></div>
@@ -2290,12 +2350,62 @@ function renderWrongList() {
         ${q.reflection ? `<div style="margin-top:4px;color:#805ad5;">💭 反思：${escapeHtml(q.reflection)}</div>` : ''}
       </div>
       <div class="list-actions">
-        ${(q.reviewStage||0) < REVIEW_INTERVALS.length ? `<button class="btn btn-success btn-sm" onclick="markReviewDone(${q.id})">✅ 标记复习完成</button>` : ''}
-        <button class="btn btn-primary btn-sm" onclick="editWrongQuestion(${q.id})">✏️ 编辑</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteWrongQuestion(${q.id})">🗑️ 删除</button>
+        ${(q.reviewStage||0) < REVIEW_INTERVALS.length ? `<button class="btn btn-success btn-sm" onclick="event.stopPropagation();markReviewDone(${q.id})">✅ 标记复习完成</button>` : ''}
+        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();editWrongQuestion(${q.id})">✏️ 编辑</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteWrongQuestion(${q.id})">🗑️ 删除</button>
       </div>
-    </div>`;
-  }).join('');
+    ` : ''}
+  </div>`;
+}
+
+function toggleWrongExpand(id) {
+  const idx = wrongExpandIds.indexOf(id);
+  if (idx >= 0) wrongExpandIds.splice(idx, 1);
+  else wrongExpandIds.push(id);
+  updateToggleAllBtn();
+  // 只重渲染这一项，避免整列表闪动
+  const q = DB.wrongQuestions.find(x => x.id === id);
+  if (!q) return;
+  const all = document.querySelectorAll('#wrongList .list-item');
+  // 通过 id 没有标识，按索引定位：使用 data 属性更稳，这里直接重渲染整体
+  renderWrongList();
+}
+
+function toggleAllWrongExpand() {
+  const sMod = document.getElementById('wrongFilterModule').value;
+  const sErr = document.getElementById('wrongFilterError')?.value || '';
+  const sRev = document.getElementById('wrongFilterReview').value;
+  let list = DB.wrongQuestions.slice().sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  if (sMod) list = list.filter(q => q.module === sMod);
+  if (sErr) list = list.filter(q => q.errorType === sErr);
+  if (sRev === 'due') list = list.filter(isReviewDue);
+  else if (sRev === 'done') list = list.filter(q => (q.reviewStage||0) >= REVIEW_INTERVALS.length);
+  else if (sRev === 'pending') list = list.filter(q => !isReviewDue(q) && (q.reviewStage||0) < REVIEW_INTERVALS.length);
+  const allExpanded = list.length > 0 && list.every(q => wrongExpandIds.includes(q.id));
+  if (allExpanded) {
+    const ids = list.map(q => q.id);
+    wrongExpandIds = wrongExpandIds.filter(id => !ids.includes(id));
+  } else {
+    list.forEach(q => { if (!wrongExpandIds.includes(q.id)) wrongExpandIds.push(q.id); });
+  }
+  updateToggleAllBtn();
+  renderWrongList();
+}
+
+function updateToggleAllBtn() {
+  const btn = document.getElementById('btnToggleAllWrong');
+  if (!btn) return;
+  const sMod = document.getElementById('wrongFilterModule')?.value || '';
+  const sErr = document.getElementById('wrongFilterError')?.value || '';
+  const sRev = document.getElementById('wrongFilterReview')?.value || '';
+  let list = DB.wrongQuestions.slice();
+  if (sMod) list = list.filter(q => q.module === sMod);
+  if (sErr) list = list.filter(q => q.errorType === sErr);
+  if (sRev === 'due') list = list.filter(isReviewDue);
+  else if (sRev === 'done') list = list.filter(q => (q.reviewStage||0) >= REVIEW_INTERVALS.length);
+  else if (sRev === 'pending') list = list.filter(q => !isReviewDue(q) && (q.reviewStage||0) < REVIEW_INTERVALS.length);
+  const allExpanded = list.length > 0 && list.every(q => wrongExpandIds.includes(q.id));
+  btn.textContent = allExpanded ? '🔼 全部收起' : '🔽 全部展开';
 }
 /* ===== 今日复习自测系统 ===== */
 let selfTestState = { currentIndex: 0, showAnswer: false, results: {} };
