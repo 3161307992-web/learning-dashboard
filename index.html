@@ -513,6 +513,7 @@ body {
       <div class="nav-item" data-page="exercise" onclick="switchPage('exercise')"><span class="icon">🏊</span>运动游泳</div>
       <div class="nav-item" data-page="review" onclick="switchPage('review')"><span class="icon">📝</span>日常反思</div>
       <div class="nav-item" data-page="plan" onclick="switchPage('plan')"><span class="icon">✅</span>每日打卡</div>
+      <div class="nav-item" data-page="skills" onclick="switchPage('skills')"><span class="icon">💡</span>解题技巧库</div>
       <div class="nav-item" data-page="books" onclick="switchPage('books')"><span class="icon">📖</span>图书阅读</div>
       <div class="nav-item" data-page="daily" onclick="switchPage('daily')"><span class="icon">📰</span>每日考情</div>
     </nav>
@@ -568,9 +569,16 @@ body {
                 </select>
               </div>
               <div class="form-group">
-                <label>题型</label>
-                <input type="text" name="questionType" list="qTypeList" placeholder="选填，如 基期量计算">
-                <datalist id="qTypeList"></datalist>
+                <label>题型（大类）</label>
+                <select name="questionType" onchange="updateQuestionSubtypes()">
+                  <option value="">请选择题型</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>细分题型</label>
+                <select name="questionSubtype" id="questionSubtypeSelect">
+                  <option value="">无（选填）</option>
+                </select>
               </div>
               <div class="form-group full">
                 <label>题目内容 *</label>
@@ -648,7 +656,7 @@ body {
           </div>
         </div>
         <div class="filter-bar">
-          <select id="wrongFilterModule" onchange="renderWrongList()">
+          <select id="wrongFilterModule" onchange="updateFilterOptions();renderWrongList()">
             <option value="">全部模块</option>
             <option value="言语理解">言语理解</option>
             <option value="数量关系">数量关系</option>
@@ -657,23 +665,11 @@ body {
             <option value="常识判断">常识判断</option>
             <option value="申论">申论</option>
           </select>
-          <select id="wrongFilterError" onchange="renderWrongList()">
-            <option value="">全部错因</option>
-            <option value="知识型-概念不清">知识型-概念不清</option>
-            <option value="知识型-公式记混">知识型-公式记混</option>
-            <option value="知识型-知识点遗忘">知识型-知识点遗忘</option>
-            <option value="方法型-思路错误">方法型-思路错误</option>
-            <option value="方法型-方法不会">方法型-方法不会</option>
-            <option value="方法型-技巧不熟">方法型-技巧不熟</option>
-            <option value="审题型-看错题目">审题型-看错题目</option>
-            <option value="审题型-漏看条件">审题型-漏看条件</option>
-            <option value="审题型-理解偏差">审题型-理解偏差</option>
-            <option value="计算型-计算错误">计算型-计算错误</option>
-            <option value="计算型-估算偏差">计算型-估算偏差</option>
-            <option value="计算型-单位错误">计算型-单位错误</option>
-            <option value="粗心型-笔误">粗心型-笔误</option>
-            <option value="粗心型-选错题号">粗心型-选错题号</option>
-            <option value="粗心型-低级失误">粗心型-低级失误</option>
+          <select id="wrongFilterType" onchange="updateFilterSubtypeOptions();renderWrongList()">
+            <option value="">全部题型</option>
+          </select>
+          <select id="wrongFilterSubtype" onchange="renderWrongList()">
+            <option value="">全部细分</option>
           </select>
           <select id="wrongFilterReview" onchange="renderWrongList()">
             <option value="">全部状态</option>
@@ -1477,6 +1473,105 @@ body {
       </div>
     </section>
 
+    <!-- ========== 解题技巧库 ========== -->
+    <section class="page" id="page-skills">
+      <div class="page-title"><span class="emoji">💡</span>解题技巧库</div>
+
+      <!-- 统计卡片 -->
+      <div class="stats-grid" id="skillsStats"></div>
+
+      <!-- 录入表单 -->
+      <div class="card">
+        <div class="card-title">
+          <span><span class="emoji">➕</span>添加解题技巧</span>
+        </div>
+        <form id="skillForm" onsubmit="return false">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>日期 *</label>
+              <input type="date" name="date" required>
+            </div>
+            <div class="form-group">
+              <label>模块 *</label>
+              <select name="module" required onchange="updateSkillTypeOptions()">
+                <option value="言语理解">言语理解</option>
+                <option value="数量关系">数量关系</option>
+                <option value="判断推理">判断推理</option>
+                <option value="资料分析">资料分析</option>
+                <option value="常识判断">常识判断</option>
+                <option value="申论">申论</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>题型大类</label>
+              <select name="questionType" onchange="updateSkillSubtypeOptions()">
+                <option value="">请选择题型</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>细分题型（可自定义）</label>
+              <input type="text" name="questionSubtype" list="skillSubtypeList" placeholder="如 因果型/前提型，或直接输入">
+              <datalist id="skillSubtypeList"></datalist>
+            </div>
+            <div class="form-group full">
+              <label>技巧名称 *</label>
+              <input type="text" name="skillName" required placeholder="如 因果型加强题解题思路">
+            </div>
+            <div class="form-group full">
+              <label>解题思路 *</label>
+              <textarea name="strategy" required rows="5" placeholder="详细步骤、思路梳理，如：1.找论点→2.找论据→3.建立因果链→4.选加强方式"></textarea>
+            </div>
+            <div class="form-group full">
+              <label>典型例题</label>
+              <textarea name="example" rows="3" placeholder="贴一道代表性例题，帮助回忆"></textarea>
+            </div>
+            <div class="form-group full">
+              <label>易错点/坑</label>
+              <textarea name="pitfalls" rows="2" placeholder="这类题容易踩的坑、注意事项"></textarea>
+            </div>
+            <div class="form-group full">
+              <label>口诀/记忆技巧</label>
+              <input type="text" name="mnemonic" placeholder="如：加强题三步走——找点、找据、搭桥梁">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" onclick="addSkill()">💾 保存技巧</button>
+            <button class="btn btn-outline" onclick="document.getElementById('skillForm').reset();setToday()">重置</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 技巧列表 -->
+      <div class="card">
+        <div class="card-title">
+          <span><span class="emoji">📚</span>技巧列表</span>
+          <span id="skillListCount" style="font-size:12px;color:var(--text-light);"></span>
+        </div>
+        <div class="filter-bar">
+          <select id="skillFilterModule" onchange="updateSkillFilterTypeOptions();renderSkillList()">
+            <option value="">全部模块</option>
+            <option value="言语理解">言语理解</option>
+            <option value="数量关系">数量关系</option>
+            <option value="判断推理">判断推理</option>
+            <option value="资料分析">资料分析</option>
+            <option value="常识判断">常识判断</option>
+            <option value="申论">申论</option>
+          </select>
+          <select id="skillFilterType" onchange="renderSkillList()">
+            <option value="">全部题型</option>
+          </select>
+          <select id="skillFilterMastery" onchange="renderSkillList()">
+            <option value="">全部掌握度</option>
+            <option value="mastered">🟢 已掌握</option>
+            <option value="review">🟡 需复习</option>
+            <option value="weak">🔴 不熟</option>
+          </select>
+          <input type="text" id="skillSearchInput" placeholder="🔍 搜索关键词..." style="flex:1;min-width:120px;padding:7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;" oninput="renderSkillList()">
+        </div>
+        <div id="skillList"></div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -1524,8 +1619,16 @@ body {
       </select>
     </div>
     <div class="form-group">
-      <label>题型</label>
-      <input type="text" id="editWrongQuestionType" placeholder="如 片段阅读" style="width:100%;">
+      <label>题型（大类）</label>
+      <select id="editWrongQuestionType" onchange="updateEditQuestionSubtypes()" style="width:100%;">
+        <option value="">请选择题型</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>细分题型</label>
+      <select id="editWrongQuestionSubtype" style="width:100%;">
+        <option value="">无（选填）</option>
+      </select>
     </div>
     <div class="form-group">
       <label>题目内容</label>
@@ -1552,10 +1655,8 @@ body {
       <textarea id="editWrongReflection" rows="2" style="width:100%;"></textarea>
     </div>
     <div class="form-group">
-      <label>错因类型</label>
-      <select id="editWrongErrorType" style="width:100%;">
-        <option value="">请选择</option>
-      </select>
+      <label>错因类型（可多选）</label>
+      <div id="editErrorTypeOptions" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;max-height:200px;overflow:auto;padding:4px;"></div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
       <button class="btn btn-outline" onclick="closeWrongEditModal()">取消</button>
@@ -1585,6 +1686,7 @@ let DB = {
   plans: [],
   books: [],
   readingNotes: [],
+  skills: [],
   dailyNews: {},
   dailyQuotes: {}
 };
@@ -1599,7 +1701,7 @@ function loadData() {
   // 补全缺失字段
   const keys = ['wrongQuestions','studyRecords','shenlunPractices','englishStudents','englishLessons',
     'speakingTopics','englishHomework','putonghuaCourses','students','exercises',
-    'reviews','plans','books','readingNotes'];
+    'reviews','plans','books','readingNotes','skills'];
   keys.forEach(k => { if (!Array.isArray(DB[k])) DB[k] = []; });
   if (!DB.thinkProgress || typeof DB.thinkProgress !== 'object') {
     DB.thinkProgress = { grade6: {}, grade7: {} };
@@ -1637,6 +1739,21 @@ function loadData() {
       }
       if (r.efficiencyRating === undefined) r.efficiencyRating = 0;
       if (r.summary === undefined) r.summary = '';
+    });
+  }
+  // 迁移错题数据：单选错因→多选错因；旧题型结构→新题型结构
+  if (Array.isArray(DB.wrongQuestions)) {
+    DB.wrongQuestions.forEach(q => {
+      if (!Array.isArray(q.errorTypes) && q.errorType) {
+        q.errorTypes = [q.errorType];
+        delete q.errorType;
+      }
+      if (!Array.isArray(q.errorTypes)) {
+        q.errorTypes = [];
+      }
+      if (q.questionSubtype === undefined) {
+        q.questionSubtype = '';
+      }
     });
   }
 }
@@ -1723,12 +1840,59 @@ const ERROR_TYPE_DETAILS = {
   ],
 };
 const MODULE_QUESTION_TYPES = {
-  '言语理解': ['逻辑填空','片段阅读','语句排序','主旨概括','意图判断','细节理解','词语辨析'],
-  '数量关系': ['工程问题','行程问题','利润问题','排列组合','概率问题','几何问题','容斥问题','年龄问题','鸡兔同笼'],
-  '判断推理': ['图形推理','定义判断','类比推理','逻辑判断','加强削弱','真假推理','翻译推理'],
-  '资料分析': ['基期量计算','增长率计算','增长量计算','比重问题','平均数问题','倍数问题','综合分析'],
-  '常识判断': ['时政','法律','历史人文','科技','地理','经济','政治'],
-  '申论': ['归纳概括','综合分析','提出对策','贯彻执行','大作文'],
+  '言语理解': {
+    '逻辑填空': ['实词填空','成语填空','虚词填空','混搭填空'],
+    '片段阅读': ['主旨概括','意图判断','细节理解','态度观点','标题填入','词句理解'],
+    '语句表达': ['语句排序','语句填空','下文推断'],
+  },
+  '数量关系': {
+    '工程问题': ['给定时间型','效率制约型','条件综合型'],
+    '行程问题': ['基础行程','相遇追及','流水行船','环形运动'],
+    '利润问题': ['基础公式','分段计费','最值优化'],
+    '排列组合': ['基础排列组合','捆绑插空','隔板法','错位排列'],
+    '概率问题': ['基础概率','分类分步','条件概率'],
+    '几何问题': ['平面几何','立体几何','几何最值'],
+    '容斥问题': ['两集合','三集合','多集合反向构造'],
+    '年龄问题': [],
+    '鸡兔同笼': [],
+    '浓度问题': ['基础浓度','溶液混合','蒸发稀释'],
+    '牛吃草问题': [],
+    '基础应用题': ['方程求解','不定方程','比例问题'],
+    '最值问题': ['最不利构造','构造数列','多集合反向构造'],
+    '数列问题': ['等差数列','等比数列','递推数列'],
+    '星期日期问题': ['星期推算','日期推算','年龄与日期'],
+  },
+  '判断推理': {
+    '图形推理': ['位置规律','样式规律','属性规律','数量规律','空间重构'],
+    '定义判断': ['单定义','多定义'],
+    '类比推理': ['语义关系','逻辑关系','语法关系'],
+    '逻辑判断': ['翻译推理','真假推理','分析推理','加强论证','削弱论证','日常结论'],
+  },
+  '资料分析': {
+    '基期量计算': ['普通基期','间隔基期','基期和差'],
+    '增长率计算': ['普通增长率','间隔增长率','混合增长率','年均增长率'],
+    '增长量计算': ['普通增长量','年均增长量','增长量比较'],
+    '比重问题': ['现期比重','基期比重','两期比重比较','比重变化'],
+    '平均数问题': ['现期平均数','基期平均数','平均数增长率'],
+    '倍数问题': ['现期倍数','基期倍数','倍数与增长'],
+    '综合分析': [],
+  },
+  '常识判断': {
+    '时政': [],
+    '法律': ['宪法','民法','刑法','行政法','新法'],
+    '历史人文': ['中国历史','世界历史','文学常识','文化常识'],
+    '科技': ['科技成就','物理','化学','生物医学','生活常识'],
+    '地理': ['自然地理','中国地理','世界地理'],
+    '经济': ['宏观经济','微观经济','经济名词'],
+    '政治': ['马克思主义哲学','毛泽东思想','中国特色社会主义'],
+  },
+  '申论': {
+    '归纳概括': ['概括问题','概括原因','概括影响','概括对策'],
+    '综合分析': ['词句解释','观点分析','现象分析','比较分析'],
+    '提出对策': ['直接对策','反推对策','流程对策'],
+    '贯彻执行': ['宣传类','建议类','总结类','方案类'],
+    '大作文': ['命题作文','话题作文','主题作文'],
+  },
 };
 const REVIEW_INTERVALS = [1, 3, 7, 15, 30];
 const CHART_COLORS = ['#667eea','#43e97b','#fa709a','#fee140','#764ba2','#4facfe','#ff6b6b'];
@@ -1822,7 +1986,7 @@ function destroyAllCharts() {
 const PAGE_TITLES = {
   civil: '公务员学习', english: '英语课堂', putonghua: '普通话课堂',
   exercise: '运动游泳', review: '日常反思', plan: '每日打卡',
-  books: '图书阅读', daily: '每日考情'
+  skills: '解题技巧库', books: '图书阅读', daily: '每日考情'
 };
 function switchPage(page) {
   destroyAllCharts();
@@ -1845,6 +2009,7 @@ function renderPage(page) {
     case 'exercise': renderExercisePage(); break;
     case 'review': renderReviewPage(); break;
     case 'plan': renderPlanPage(); break;
+    case 'skills': renderSkillsPage(); break;
     case 'books': renderBooksPage(); break;
     case 'daily': renderDailyPage(); break;
   }
@@ -1896,13 +2061,29 @@ function renderCivilStats() {
       <div class="stat-value">${s.value}</div>
     </div>`).join('');
 }
-let selectedErrorType = '';
+let selectedErrorTypes = [];
+let editErrorTypesSelected = [];
 
 function suggestQuestionTypes() {
   const module = document.querySelector('#wrongForm1 select[name=module]').value;
-  const types = MODULE_QUESTION_TYPES[module] || [];
-  const dl = document.getElementById('qTypeList');
-  if (dl) dl.innerHTML = types.map(t => `<option value="${t}">`).join('');
+  const typesObj = MODULE_QUESTION_TYPES[module] || {};
+  const typeSelect = document.querySelector('#wrongForm1 select[name=questionType]');
+  if (typeSelect) {
+    typeSelect.innerHTML = '<option value="">请选择题型</option>' +
+      Object.keys(typesObj).map(t => `<option value="${t}">${t}</option>`).join('');
+  }
+  updateQuestionSubtypes();
+}
+
+function updateQuestionSubtypes() {
+  const module = document.querySelector('#wrongForm1 select[name=module]').value;
+  const qType = document.querySelector('#wrongForm1 select[name=questionType]').value;
+  const subtypes = (MODULE_QUESTION_TYPES[module]?.[qType]) || [];
+  const subSelect = document.getElementById('questionSubtypeSelect');
+  if (subSelect) {
+    subSelect.innerHTML = '<option value="">无（选填）</option>' +
+      subtypes.map(s => `<option value="${s}">${s}</option>`).join('');
+  }
 }
 
 function goToStep2() {
@@ -1929,7 +2110,7 @@ function goToStep2() {
 
   // 渲染错因选项
   renderErrorTypeOptions();
-  selectedErrorType = '';
+  selectedErrorTypes = [];
 
   // 切换步骤
   document.getElementById('wrongStep1').style.display = 'none';
@@ -1951,7 +2132,7 @@ function backToStep1() {
 function resetWrongForm() {
   document.getElementById('wrongForm1').reset();
   document.getElementById('wrongForm2').reset();
-  selectedErrorType = '';
+  selectedErrorTypes = [];
   document.getElementById('wrongStep1').style.display = 'block';
   document.getElementById('wrongStep2').style.display = 'none';
   document.getElementById('step1Badge').classList.add('active');
@@ -1967,8 +2148,9 @@ function renderErrorTypeOptions() {
     const subs = ERROR_TYPE_DETAILS[big] || [];
     html += `<div style="grid-column:1/-1;font-weight:600;font-size:13px;color:var(--text-secondary);margin-top:4px;">${big}</div>`;
     subs.forEach(s => {
-      html += `<div class="error-type-card" data-value="${s.value}" onclick="selectErrorType('${s.value}')">
-        <div class="et-title">${s.label}</div>
+      const selected = selectedErrorTypes.includes(s.value);
+      html += `<div class="error-type-card ${selected ? 'selected' : ''}" data-value="${s.value}" onclick="toggleErrorType('${s.value}')">
+        <div class="et-title">${selected ? '✅ ' : ''}${s.label}</div>
         <div class="et-sub">${s.sub}</div>
       </div>`;
     });
@@ -1976,11 +2158,11 @@ function renderErrorTypeOptions() {
   el.innerHTML = html;
 }
 
-function selectErrorType(val) {
-  selectedErrorType = val;
-  document.querySelectorAll('.error-type-card').forEach(c => {
-    c.classList.toggle('selected', c.dataset.value === val);
-  });
+function toggleErrorType(val) {
+  const idx = selectedErrorTypes.indexOf(val);
+  if (idx >= 0) selectedErrorTypes.splice(idx, 1);
+  else selectedErrorTypes.push(val);
+  renderErrorTypeOptions();
 }
 
 function generateAnalysisTemplate(module, qType, question, myAnswer, correctAnswer) {
@@ -2162,8 +2344,8 @@ async function callDoubaoAI() {
 }
 
 function addWrongQuestionFinal() {
-  if (!selectedErrorType) {
-    alert('请选择错误原因分类');
+  if (selectedErrorTypes.length === 0) {
+    alert('请至少选择一个错误原因分类');
     return false;
   }
   const form1 = document.getElementById('wrongForm1');
@@ -2180,10 +2362,11 @@ function addWrongQuestionFinal() {
     date: date,
     module: fd1.get('module'),
     questionType: fd1.get('questionType') || '',
+    questionSubtype: fd1.get('questionSubtype') || '',
     question: fd1.get('question'),
     myAnswer: fd1.get('myAnswer') || '',
     correctAnswer: fd1.get('correctAnswer'),
-    errorType: selectedErrorType,
+    errorTypes: [...selectedErrorTypes],
     analysis: fd2.get('analysis'),
     knowledgePoint: fd2.get('knowledgePoint') || '',
     reflection: fd2.get('reflection') || '',
@@ -2220,35 +2403,71 @@ function deleteWrongQuestion(id) {
 }
 
 /* ===== 错题编辑 ===== */
+function updateEditQuestionSubtypes() {
+  const module = document.getElementById('editWrongModule').value;
+  const qType = document.getElementById('editWrongQuestionType').value;
+  const subtypes = (MODULE_QUESTION_TYPES[module]?.[qType]) || [];
+  const subSelect = document.getElementById('editWrongQuestionSubtype');
+  if (subSelect) {
+    const currentVal = subSelect.value;
+    subSelect.innerHTML = '<option value="">无（选填）</option>' +
+      subtypes.map(s => `<option value="${s}">${s}</option>`).join('');
+    if (subtypes.includes(currentVal)) {
+      subSelect.value = currentVal;
+    }
+  }
+}
+
+function fillEditQuestionTypes(module, qType, qSubtype) {
+  const typeSelect = document.getElementById('editWrongQuestionType');
+  const typesObj = MODULE_QUESTION_TYPES[module] || {};
+  typeSelect.innerHTML = '<option value="">请选择题型</option>' +
+    Object.keys(typesObj).map(t => `<option value="${t}">${t}</option>`).join('');
+  typeSelect.value = qType || '';
+  updateEditQuestionSubtypes();
+  document.getElementById('editWrongQuestionSubtype').value = qSubtype || '';
+}
+
 function editWrongQuestion(id) {
   const q = DB.wrongQuestions.find(x => x.id === id);
   if (!q) return;
   document.getElementById('editWrongId').value = q.id;
   document.getElementById('editWrongDate').value = q.date || '';
   document.getElementById('editWrongModule').value = q.module || '言语理解';
-  document.getElementById('editWrongQuestionType').value = q.questionType || '';
+  fillEditQuestionTypes(q.module, q.questionType, q.questionSubtype);
   document.getElementById('editWrongQuestion').value = q.question || '';
   document.getElementById('editWrongMyAnswer').value = q.myAnswer || '';
   document.getElementById('editWrongCorrectAnswer').value = q.correctAnswer || '';
   document.getElementById('editWrongAnalysis').value = q.analysis || '';
   document.getElementById('editWrongKnowledgePoint').value = q.knowledgePoint || '';
   document.getElementById('editWrongReflection').value = q.reflection || '';
-  populateEditWrongErrorType(q.errorType || '');
+  const ets = Array.isArray(q.errorTypes) ? q.errorTypes : (q.errorType ? [q.errorType] : []);
+  editErrorTypesSelected = [...ets];
+  renderEditErrorTypeOptions();
   document.getElementById('wrongEditModal').style.display = 'flex';
 }
 
-function populateEditWrongErrorType(selectedValue) {
-  const sel = document.getElementById('editWrongErrorType');
-  let html = '<option value="">请选择</option>';
+function renderEditErrorTypeOptions() {
+  const el = document.getElementById('editErrorTypeOptions');
+  if (!el) return;
+  let html = '';
   ERROR_TYPES.forEach(big => {
     const subs = ERROR_TYPE_DETAILS[big] || [];
-    html += `<optgroup label="${big}">`;
     subs.forEach(s => {
-      html += `<option value="${s.value}" ${s.value === selectedValue ? 'selected' : ''}>${s.label} - ${s.sub}</option>`;
+      const sel = editErrorTypesSelected.includes(s.value);
+      html += `<div class="error-type-card ${sel ? 'selected' : ''}" style="padding:6px 10px;font-size:12px;" data-value="${s.value}" onclick="toggleEditErrorType('${s.value}')">
+        <div class="et-title" style="font-size:12px;">${sel ? '✅ ' : ''}${s.label}</div>
+      </div>`;
     });
-    html += '</optgroup>';
   });
-  sel.innerHTML = html;
+  el.innerHTML = html;
+}
+
+function toggleEditErrorType(val) {
+  const idx = editErrorTypesSelected.indexOf(val);
+  if (idx >= 0) editErrorTypesSelected.splice(idx, 1);
+  else editErrorTypesSelected.push(val);
+  renderEditErrorTypeOptions();
 }
 
 function closeWrongEditModal() {
@@ -2262,13 +2481,15 @@ function saveWrongEdit() {
   q.date = document.getElementById('editWrongDate').value;
   q.module = document.getElementById('editWrongModule').value;
   q.questionType = document.getElementById('editWrongQuestionType').value.trim();
+  q.questionSubtype = document.getElementById('editWrongQuestionSubtype').value.trim();
   q.question = document.getElementById('editWrongQuestion').value.trim();
   q.myAnswer = document.getElementById('editWrongMyAnswer').value.trim();
   q.correctAnswer = document.getElementById('editWrongCorrectAnswer').value.trim();
   q.analysis = document.getElementById('editWrongAnalysis').value.trim();
   q.knowledgePoint = document.getElementById('editWrongKnowledgePoint').value.trim();
   q.reflection = document.getElementById('editWrongReflection').value.trim();
-  q.errorType = document.getElementById('editWrongErrorType').value;
+  q.errorTypes = [...editErrorTypesSelected];
+  delete q.errorType;
   saveData();
   closeWrongEditModal();
   renderCivilPage();
@@ -2288,20 +2509,56 @@ function markReviewDone(id) {
   renderCivilPage();
 }
 
+function updateFilterOptions() {
+  const module = document.getElementById('wrongFilterModule').value;
+  const typeSelect = document.getElementById('wrongFilterType');
+  const subTypeSelect = document.getElementById('wrongFilterSubtype');
+  if (!typeSelect || !subTypeSelect) return;
+  const currentTypeVal = typeSelect.value;
+  const currentSubVal = subTypeSelect.value;
+
+  if (!module) {
+    typeSelect.innerHTML = '<option value="">全部题型</option>';
+    subTypeSelect.innerHTML = '<option value="">全部细分</option>';
+    return;
+  }
+  const typesObj = MODULE_QUESTION_TYPES[module] || {};
+  typeSelect.innerHTML = '<option value="">全部题型</option>' +
+    Object.keys(typesObj).map(t => `<option value="${t}">${t}</option>`).join('');
+
+  updateFilterSubtypeOptions();
+}
+
+function updateFilterSubtypeOptions() {
+  const module = document.getElementById('wrongFilterModule').value;
+  const qType = document.getElementById('wrongFilterType').value;
+  const subTypeSelect = document.getElementById('wrongFilterSubtype');
+  if (!subTypeSelect) return;
+
+  if (!module || !qType) {
+    subTypeSelect.innerHTML = '<option value="">全部细分</option>';
+    return;
+  }
+  const subtypes = (MODULE_QUESTION_TYPES[module]?.[qType]) || [];
+  subTypeSelect.innerHTML = '<option value="">全部细分</option>' +
+    subtypes.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
 function renderWrongList() {
   const sMod = document.getElementById('wrongFilterModule').value;
-  const sErr = document.getElementById('wrongFilterError')?.value || '';
+  const sType = document.getElementById('wrongFilterType')?.value || '';
+  const sSubType = document.getElementById('wrongFilterSubtype')?.value || '';
   const sRev = document.getElementById('wrongFilterReview').value;
   let list = DB.wrongQuestions.slice().sort((a,b) => (b.date||'').localeCompare(a.date||''));
   if (sMod) list = list.filter(q => q.module === sMod);
-  if (sErr) list = list.filter(q => q.errorType === sErr);
+  if (sType) list = list.filter(q => q.questionType === sType);
+  if (sSubType) list = list.filter(q => q.questionSubtype === sSubType);
   if (sRev === 'due') list = list.filter(isReviewDue);
   else if (sRev === 'done') list = list.filter(q => (q.reviewStage||0) >= REVIEW_INTERVALS.length);
   else if (sRev === 'pending') list = list.filter(q => !isReviewDue(q) && (q.reviewStage||0) < REVIEW_INTERVALS.length);
   const el = document.getElementById('wrongList');
   const countEl = document.getElementById('wrongListCount');
   if (countEl) countEl.textContent = `共 ${list.length} 条`;
-  // 清理已不存在的展开状态
   wrongExpandIds = wrongExpandIds.filter(id => list.some(q => q.id === id));
   updateToggleAllBtn();
   if (list.length === 0) {
@@ -2311,17 +2568,25 @@ function renderWrongList() {
   el.innerHTML = list.map(q => renderWrongItem(q)).join('');
 }
 
+function getErrorTypesOf(q) {
+  if (Array.isArray(q.errorTypes) && q.errorTypes.length > 0) return q.errorTypes;
+  if (q.errorType) return [q.errorType];
+  return [];
+}
+
 function renderWrongItem(q) {
   const stage = reviewStageLabel(q);
   const due = isReviewDue(q);
-  const errTypeLabel = q.errorType || '未分类';
+  const errTypes = getErrorTypesOf(q);
   const expanded = wrongExpandIds.includes(q.id);
   const fullQuestion = q.question || '（无题目）';
   const preview = fullQuestion.length > 50 ? fullQuestion.slice(0, 50) + '…' : fullQuestion;
-  // 题型标签优先展示
   const typeTag = q.questionType
-    ? `<span class="tag tag-blue">${escapeHtml(q.questionType)}</span>`
+    ? `<span class="tag tag-blue">${escapeHtml(q.questionType)}${q.questionSubtype ? ' · ' + escapeHtml(q.questionSubtype) : ''}</span>`
     : `<span class="tag tag-gray">${escapeHtml(q.module || '')}</span>`;
+  const errTags = errTypes.length > 0
+    ? errTypes.map(e => `<span class="tag tag-orange">${escapeHtml(e)}</span>`).join('')
+    : '<span class="tag tag-gray">未分类</span>';
   return `
   <div class="list-item ${due ? 'review-due' : ''} ${expanded ? 'expanded' : ''}">
     <div class="wrong-head" onclick="toggleWrongExpand(${q.id})">
@@ -2334,7 +2599,7 @@ function renderWrongItem(q) {
         <div class="list-meta">
           <span>${q.date}</span>
           ${q.questionType ? `<span class="tag tag-gray">${escapeHtml(q.module)}</span>` : ''}
-          <span class="tag tag-orange">${errTypeLabel}</span>
+          ${errTags}
           <span class="tag ${stage.cls}">${stage.text}</span>
           ${due ? '<span class="tag tag-red">今日待复习</span>' : ''}
         </div>
@@ -2373,11 +2638,13 @@ function toggleWrongExpand(id) {
 
 function toggleAllWrongExpand() {
   const sMod = document.getElementById('wrongFilterModule').value;
-  const sErr = document.getElementById('wrongFilterError')?.value || '';
+  const sType = document.getElementById('wrongFilterType')?.value || '';
+  const sSubType = document.getElementById('wrongFilterSubtype')?.value || '';
   const sRev = document.getElementById('wrongFilterReview').value;
   let list = DB.wrongQuestions.slice().sort((a,b) => (b.date||'').localeCompare(a.date||''));
   if (sMod) list = list.filter(q => q.module === sMod);
-  if (sErr) list = list.filter(q => q.errorType === sErr);
+  if (sType) list = list.filter(q => q.questionType === sType);
+  if (sSubType) list = list.filter(q => q.questionSubtype === sSubType);
   if (sRev === 'due') list = list.filter(isReviewDue);
   else if (sRev === 'done') list = list.filter(q => (q.reviewStage||0) >= REVIEW_INTERVALS.length);
   else if (sRev === 'pending') list = list.filter(q => !isReviewDue(q) && (q.reviewStage||0) < REVIEW_INTERVALS.length);
@@ -2396,11 +2663,13 @@ function updateToggleAllBtn() {
   const btn = document.getElementById('btnToggleAllWrong');
   if (!btn) return;
   const sMod = document.getElementById('wrongFilterModule')?.value || '';
-  const sErr = document.getElementById('wrongFilterError')?.value || '';
+  const sType = document.getElementById('wrongFilterType')?.value || '';
+  const sSubType = document.getElementById('wrongFilterSubtype')?.value || '';
   const sRev = document.getElementById('wrongFilterReview')?.value || '';
   let list = DB.wrongQuestions.slice();
   if (sMod) list = list.filter(q => q.module === sMod);
-  if (sErr) list = list.filter(q => q.errorType === sErr);
+  if (sType) list = list.filter(q => q.questionType === sType);
+  if (sSubType) list = list.filter(q => q.questionSubtype === sSubType);
   if (sRev === 'due') list = list.filter(isReviewDue);
   else if (sRev === 'done') list = list.filter(q => (q.reviewStage||0) >= REVIEW_INTERVALS.length);
   else if (sRev === 'pending') list = list.filter(q => !isReviewDue(q) && (q.reviewStage||0) < REVIEW_INTERVALS.length);
@@ -2452,13 +2721,17 @@ function renderSelfTestArea() {
 
   const q = dueReviews[state.currentIndex];
   const result = state.results[q.id];
+  const errTypes = getErrorTypesOf(q);
+  const errTagsHtml = errTypes.length > 0
+    ? errTypes.map(e => `<span class="tag tag-orange">${escapeHtml(e)}</span>`).join('')
+    : '<span class="tag tag-gray">未分类</span>';
 
   el.innerHTML = `
     <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;font-size:13px;">
       <span>
         <span class="tag tag-purple">${q.module}</span>
         <span class="tag tag-red">第${(q.reviewStage||0)+1}轮复习</span>
-        <span class="tag tag-gray">${q.errorType || ''}</span>
+        ${errTagsHtml}
       </span>
       <span style="color:var(--text-light);">第 ${state.currentIndex + 1} / ${total} 题</span>
     </div>
@@ -2662,7 +2935,10 @@ function renderErrorTypeStats() {
   html += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;">📊 按错因大类分布</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px;">';
   ERROR_TYPES.forEach(big => {
-    const count = DB.wrongQuestions.filter(q => q.errorType && q.errorType.startsWith(big)).length;
+    const count = DB.wrongQuestions.filter(q => {
+      const ets = Array.isArray(q.errorTypes) ? q.errorTypes : (q.errorType ? [q.errorType] : []);
+      return ets.some(et => et.startsWith(big));
+    }).length;
     const pct = total > 0 ? Math.round(count / total * 100) : 0;
     const color = bigTypeColors[big] || '#a0aec0';
     html += `<div style="padding:10px 12px;background:${color}15;border-radius:8px;border-left:3px solid ${color};">
@@ -2675,9 +2951,12 @@ function renderErrorTypeStats() {
   html += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;">🔍 细分错因排行</div>';
   const detailCounts = {};
   DB.wrongQuestions.forEach(q => {
-    if (q.errorType) {
-      detailCounts[q.errorType] = (detailCounts[q.errorType] || 0) + 1;
-    }
+    const ets = Array.isArray(q.errorTypes) ? q.errorTypes : (q.errorType ? [q.errorType] : []);
+    ets.forEach(et => {
+      if (et) {
+        detailCounts[et] = (detailCounts[et] || 0) + 1;
+      }
+    });
   });
   const sortedDetails = Object.entries(detailCounts).sort((a,b) => b[1] - a[1]).slice(0, 10);
   const maxCount = sortedDetails.length > 0 ? sortedDetails[0][1] : 1;
@@ -3735,7 +4014,15 @@ function autoFillTodayCompletion() {
   const wrongs = DB.wrongQuestions.filter(q => q.date === date);
   if (wrongs.length > 0) {
     const types = {};
-    wrongs.forEach(q => { const et = q.errorType || '未分类'; types[et] = (types[et] || 0) + 1; });
+    wrongs.forEach(q => {
+      const ets = Array.isArray(q.errorTypes) ? q.errorTypes : (q.errorType ? [q.errorType] : []);
+      const bigTypes = new Set();
+      ets.forEach(et => {
+        const big = et.split('-')[0] || '未分类';
+        bigTypes.add(big);
+      });
+      bigTypes.forEach(bt => { types[bt] = (types[bt] || 0) + 1; });
+    });
     const typeStr = Object.keys(types).map(t => `${t}${types[t]}道`).join('、');
     lines.push(`❌ 错题整理：共记录 ${wrongs.length} 道错题（${typeStr}）`);
   }
@@ -4145,6 +4432,199 @@ function loadHistoryPlan(date) {
   document.getElementById('planItemsList').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+/* ===================== 解题技巧库 ===================== */
+let skillExpandIds = [];
+
+function renderSkillsPage() {
+  renderSkillsStats();
+  renderSkillList();
+  updateSkillTypeOptions();
+  updateSkillFilterTypeOptions();
+}
+
+function renderSkillsStats() {
+  const total = DB.skills.length;
+  const mastered = DB.skills.filter(s => s.mastery === 'mastered').length;
+  const review = DB.skills.filter(s => s.mastery === 'review').length;
+  const weak = DB.skills.filter(s => s.mastery === 'weak').length;
+  const stats = [
+    { icon: '💡', label: '技巧总数', value: total + '条', cls: 'stat-purple' },
+    { icon: '🟢', label: '已掌握', value: mastered + '条', cls: 'stat-green' },
+    { icon: '🟡', label: '需复习', value: review + '条', cls: 'stat-orange' },
+    { icon: '🔴', label: '不熟', value: weak + '条', cls: 'stat-blue' },
+  ];
+  document.getElementById('skillsStats').innerHTML = stats.map(s =>
+    `<div class="stat-card ${s.cls}">
+      <div class="stat-icon">${s.icon}</div>
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value">${s.value}</div>
+    </div>`).join('');
+}
+
+function updateSkillTypeOptions() {
+  const form = document.getElementById('skillForm');
+  if (!form) return;
+  const module = form.module.value;
+  const typesObj = MODULE_QUESTION_TYPES[module] || {};
+  const typeSelect = form.questionType;
+  typeSelect.innerHTML = '<option value="">请选择题型</option>' +
+    Object.keys(typesObj).map(t => `<option value="${t}">${t}</option>`).join('');
+  updateSkillSubtypeOptions();
+}
+
+function updateSkillSubtypeOptions() {
+  const form = document.getElementById('skillForm');
+  if (!form) return;
+  const module = form.module.value;
+  const qType = form.questionType.value;
+  const dl = document.getElementById('skillSubtypeList');
+  if (!dl) return;
+  const subtypes = (MODULE_QUESTION_TYPES[module]?.[qType]) || [];
+  dl.innerHTML = subtypes.map(s => `<option value="${s}">`).join('');
+}
+
+function updateSkillFilterTypeOptions() {
+  const module = document.getElementById('skillFilterModule')?.value || '';
+  const typeSelect = document.getElementById('skillFilterType');
+  if (!typeSelect) return;
+  if (!module) {
+    typeSelect.innerHTML = '<option value="">全部题型</option>';
+    return;
+  }
+  const typesObj = MODULE_QUESTION_TYPES[module] || {};
+  typeSelect.innerHTML = '<option value="">全部题型</option>' +
+    Object.keys(typesObj).map(t => `<option value="${t}">${t}</option>`).join('');
+}
+
+function addSkill() {
+  const form = document.getElementById('skillForm');
+  const fd = new FormData(form);
+  if (!fd.get('date') || !fd.get('module') || !fd.get('skillName') || !fd.get('strategy')) {
+    alert('请填写必填项：日期、模块、技巧名称、解题思路');
+    return false;
+  }
+  const skill = {
+    id: uid(),
+    date: fd.get('date'),
+    module: fd.get('module'),
+    questionType: fd.get('questionType') || '',
+    questionSubtype: fd.get('questionSubtype') || '',
+    skillName: fd.get('skillName'),
+    strategy: fd.get('strategy'),
+    example: fd.get('example') || '',
+    pitfalls: fd.get('pitfalls') || '',
+    mnemonic: fd.get('mnemonic') || '',
+    mastery: 'review',
+    createTime: new Date().toISOString(),
+  };
+  DB.skills.push(skill);
+  saveData();
+  form.reset();
+  setToday();
+  updateSkillTypeOptions();
+  renderSkillsPage();
+  return false;
+}
+
+function deleteSkill(id) {
+  if (!confirm('确定删除这条技巧吗？')) return;
+  DB.skills = DB.skills.filter(s => s.id !== id);
+  saveData();
+  renderSkillsPage();
+}
+
+function setSkillMastery(id, mastery) {
+  const s = DB.skills.find(x => x.id === id);
+  if (!s) return;
+  s.mastery = mastery;
+  saveData();
+  renderSkillsPage();
+}
+
+function toggleSkillExpand(id) {
+  const idx = skillExpandIds.indexOf(id);
+  if (idx >= 0) skillExpandIds.splice(idx, 1);
+  else skillExpandIds.push(id);
+  renderSkillList();
+}
+
+function renderSkillList() {
+  const sMod = document.getElementById('skillFilterModule')?.value || '';
+  const sType = document.getElementById('skillFilterType')?.value || '';
+  const sMas = document.getElementById('skillFilterMastery')?.value || '';
+  const sKey = document.getElementById('skillSearchInput')?.value.trim().toLowerCase() || '';
+  let list = DB.skills.slice().sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  if (sMod) list = list.filter(s => s.module === sMod);
+  if (sType) list = list.filter(s => s.questionType === sType);
+  if (sMas) list = list.filter(s => s.mastery === sMas);
+  if (sKey) list = list.filter(s => {
+    return (s.skillName||'').toLowerCase().includes(sKey) ||
+           (s.strategy||'').toLowerCase().includes(sKey) ||
+           (s.example||'').toLowerCase().includes(sKey) ||
+           (s.pitfalls||'').toLowerCase().includes(sKey) ||
+           (s.mnemonic||'').toLowerCase().includes(sKey) ||
+           (s.questionSubtype||'').toLowerCase().includes(sKey);
+  });
+  const el = document.getElementById('skillList');
+  const countEl = document.getElementById('skillListCount');
+  if (countEl) countEl.textContent = `共 ${list.length} 条`;
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="emoji">💡</div><div>暂无技巧记录，快去添加吧！</div></div>';
+    return;
+  }
+  el.innerHTML = list.map(s => renderSkillItem(s)).join('');
+}
+
+function renderSkillItem(s) {
+  const expanded = skillExpandIds.includes(s.id);
+  const masteryMap = {
+    'mastered': { text: '🟢 已掌握', cls: 'tag-green' },
+    'review': { text: '🟡 需复习', cls: 'tag-orange' },
+    'weak': { text: '🔴 不熟', cls: 'tag-red' },
+    'none': { text: '⚪ 未标记', cls: 'tag-gray' },
+  };
+  const m = masteryMap[s.mastery || 'none'];
+  const typeTags = [];
+  if (s.module) typeTags.push(`<span class="tag tag-purple">${escapeHtml(s.module)}</span>`);
+  if (s.questionType) typeTags.push(`<span class="tag tag-blue">${escapeHtml(s.questionType)}</span>`);
+  if (s.questionSubtype) typeTags.push(`<span class="tag tag-blue">${escapeHtml(s.questionSubtype)}</span>`);
+  return `
+  <div class="list-item ${expanded ? 'expanded' : ''}">
+    <div class="wrong-head" onclick="toggleSkillExpand(${s.id})">
+      <div style="flex:1;min-width:0;">
+        <div class="list-title wrong-preview">
+          ${typeTags.join('')}
+          <span class="wrong-preview-text">${escapeHtml(s.skillName)}</span>
+        </div>
+        <div class="list-meta">
+          <span>${s.date}</span>
+          <span class="tag ${m.cls}">${m.text}</span>
+          ${s.mnemonic ? `<span style="color:#805ad5;font-size:12px;">📌 ${escapeHtml(s.mnemonic)}</span>` : ''}
+        </div>
+      </div>
+      <span class="wrong-toggle-icon">${expanded ? '🔼' : '🔽'}</span>
+    </div>
+    ${expanded ? `
+      <div class="list-body">
+        <div style="margin-bottom:10px;">
+          <div style="font-weight:600;color:var(--primary-1);margin-bottom:4px;">💡 解题思路</div>
+          <div style="white-space:pre-wrap;">${escapeHtml(s.strategy)}</div>
+        </div>
+        ${s.example ? `<div style="margin-bottom:10px;"><div style="font-weight:600;color:var(--primary-1);margin-bottom:4px;">📝 典型例题</div><div style="white-space:pre-wrap;">${escapeHtml(s.example)}</div></div>` : ''}
+        ${s.pitfalls ? `<div style="margin-bottom:10px;"><div style="font-weight:600;color:#e53e3e;margin-bottom:4px;">⚠️ 易错点/坑</div><div style="white-space:pre-wrap;">${escapeHtml(s.pitfalls)}</div></div>` : ''}
+        ${s.mnemonic ? `<div style="margin-bottom:10px;"><div style="font-weight:600;color:#805ad5;margin-bottom:4px;">📌 口诀/记忆技巧</div><div>${escapeHtml(s.mnemonic)}</div></div>` : ''}
+      </div>
+      <div class="list-actions">
+        <span style="font-size:12px;color:var(--text-light);margin-right:4px;">掌握度：</span>
+        <button class="btn btn-sm ${s.mastery==='mastered'?'btn-success':'btn-outline'}" onclick="event.stopPropagation();setSkillMastery(${s.id},'mastered')">🟢 掌握</button>
+        <button class="btn btn-sm ${s.mastery==='review'?'btn-primary':'btn-outline'}" onclick="event.stopPropagation();setSkillMastery(${s.id},'review')">🟡 需复习</button>
+        <button class="btn btn-sm ${s.mastery==='weak'?'btn-danger':'btn-outline'}" onclick="event.stopPropagation();setSkillMastery(${s.id},'weak')">🔴 不熟</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteSkill(${s.id})">🗑️ 删除</button>
+      </div>
+    ` : ''}
+  </div>`;
+}
+
 /* ===================== 7. 图书阅读 ===================== */
 function renderBooksPage() {
   renderBookStats();
@@ -4351,19 +4831,19 @@ function renderBookChart() {
 function generateSampleData() {
   // 公务员错题
   const wrongSamples = [
-    { offset: 2, module: '资料分析', questionType: '基期量计算', question: '2024年某省GDP为12000亿元，同比增长8%，求2023年GDP约为多少亿元？', myAnswer: '11000', correctAnswer: '11111', errorType: '计算型', analysis: '基期量=现期量/(1+增长率)=12000/(1+8%)≈11111亿元。', knowledgePoint: '基期量=现期量/(1+增长率)' },
-    { offset: 0, module: '言语理解', questionType: '逻辑填空', question: '依次填入横线处最恰当的词语：这座古城历经千年______，依然散发着独特魅力。', myAnswer: '沧桑', correctAnswer: '风雨', errorType: '知识型', analysis: '"风雨"比喻艰难困苦的考验，与"历经千年"搭配更贴切。', knowledgePoint: '成语辨析' },
-    { offset: 1, module: '判断推理', questionType: '图形推理', question: '一组图形呈现顺时针旋转90度规律，问下一个图形是？', myAnswer: 'B', correctAnswer: 'C', errorType: '方法型', analysis: '图形不仅旋转，还有元素数量递增规律。', knowledgePoint: '图形推理-旋转规律' },
-    { offset: 3, module: '数量关系', questionType: '行程问题', question: '甲乙从A地出发，甲速60km/h，乙速40km/h，乙先出发1小时，甲几小时追上乙？', myAnswer: '3', correctAnswer: '2', errorType: '计算型', analysis: '追及距离=40×1=40km，速度差=20km/h，追及时间=2小时。', knowledgePoint: '追及问题' },
-    { offset: 0, module: '常识判断', questionType: '时政', question: '下列关于近期重要会议表述正确的是？', myAnswer: 'A', correctAnswer: 'C', errorType: '知识型', analysis: '需关注最新时政热点。', knowledgePoint: '时政热点' },
-    { offset: 1, module: '申论', questionType: '归纳概括', question: '根据给定资料，概括当前基层治理中存在的主要问题。（15分）', myAnswer: '只写了2点，漏了资金不足和人才流失', correctAnswer: '应从制度、资金、人才、技术四个维度概括，分条作答', errorType: '方法型', analysis: '归纳概括题需多角度提取要点，注意分条分类作答，每条用"核心词+展开说明"格式。', knowledgePoint: '归纳概括-多维度提取要点' },
+    { offset: 2, module: '资料分析', questionType: '基期量计算', questionSubtype: '普通基期', question: '2024年某省GDP为12000亿元，同比增长8%，求2023年GDP约为多少亿元？', myAnswer: '11000', correctAnswer: '11111', errorTypes: ['计算型-计算错误'], analysis: '基期量=现期量/(1+增长率)=12000/(1+8%)≈11111亿元。', knowledgePoint: '基期量=现期量/(1+增长率)' },
+    { offset: 0, module: '言语理解', questionType: '逻辑填空', questionSubtype: '成语填空', question: '依次填入横线处最恰当的词语：这座古城历经千年______，依然散发着独特魅力。', myAnswer: '沧桑', correctAnswer: '风雨', errorTypes: ['知识型-概念不清'], analysis: '"风雨"比喻艰难困苦的考验，与"历经千年"搭配更贴切。', knowledgePoint: '成语辨析' },
+    { offset: 1, module: '判断推理', questionType: '图形推理', questionSubtype: '位置规律', question: '一组图形呈现顺时针旋转90度规律，问下一个图形是？', myAnswer: 'B', correctAnswer: 'C', errorTypes: ['方法型-思路错误'], analysis: '图形不仅旋转，还有元素数量递增规律。', knowledgePoint: '图形推理-旋转规律' },
+    { offset: 3, module: '数量关系', questionType: '行程问题', questionSubtype: '相遇追及', question: '甲乙从A地出发，甲速60km/h，乙速40km/h，乙先出发1小时，甲几小时追上乙？', myAnswer: '3', correctAnswer: '2', errorTypes: ['计算型-计算错误', '粗心型-低级失误'], analysis: '追及距离=40×1=40km，速度差=20km/h，追及时间=2小时。', knowledgePoint: '追及问题' },
+    { offset: 0, module: '常识判断', questionType: '时政', questionSubtype: '', question: '下列关于近期重要会议表述正确的是？', myAnswer: 'A', correctAnswer: 'C', errorTypes: ['知识型-知识点遗忘'], analysis: '需关注最新时政热点。', knowledgePoint: '时政热点' },
+    { offset: 1, module: '申论', questionType: '归纳概括', questionSubtype: '概括问题', question: '根据给定资料，概括当前基层治理中存在的主要问题。（15分）', myAnswer: '只写了2点，漏了资金不足和人才流失', correctAnswer: '应从制度、资金、人才、技术四个维度概括，分条作答', errorTypes: ['方法型-方法不会'], analysis: '归纳概括题需多角度提取要点，注意分条分类作答，每条用"核心词+展开说明"格式。', knowledgePoint: '归纳概括-多维度提取要点' },
   ];
   wrongSamples.forEach(s => {
     const date = daysAgoStr(s.offset);
     DB.wrongQuestions.push({
-      id: uid(), date, module: s.module, questionType: s.questionType,
+      id: uid(), date, module: s.module, questionType: s.questionType, questionSubtype: s.questionSubtype || '',
       question: s.question, myAnswer: s.myAnswer, correctAnswer: s.correctAnswer,
-      errorType: s.errorType, analysis: s.analysis, knowledgePoint: s.knowledgePoint,
+      errorTypes: s.errorTypes || [s.errorType || ''], analysis: s.analysis, knowledgePoint: s.knowledgePoint,
       reviewStage: 0, nextReviewDate: dateOffset(date, REVIEW_INTERVALS[0]), lastReviewDate: date
     });
   });
@@ -4708,6 +5188,10 @@ function renderDailyHistory() {
   }).join('');
 }
 
+function setWrongFormMode(mode) {
+  // 预留：快速录入模式切换
+}
+
 function init() {
   loadData();
   if (DB.wrongQuestions.length === 0 && DB.studyRecords.length === 0 &&
@@ -4719,6 +5203,8 @@ function init() {
     saveData();
   }
   setToday();
+  suggestQuestionTypes();
+  updateFilterOptions();
   setWrongFormMode('quick');
   // 设置反思表单默认效率自评为 8 分
   const reviewForm = document.getElementById('reviewForm');
