@@ -1607,6 +1607,9 @@ body {
           <span><span class="emoji">➕</span>添加解题技巧</span>
         </div>
         <form id="skillForm" onsubmit="return false">
+          <div id="skillEditBanner" style="display:none;margin-bottom:12px;padding:10px 14px;background:linear-gradient(90deg,#fef3c7,#fde68a);border-radius:8px;font-size:13px;color:#92400e;font-weight:600;">
+            ✏️ 编辑模式：正在修改解题技巧，修改完成后点击「更新技巧」保存
+          </div>
           <div class="form-grid">
             <div class="form-group">
               <label>日期 *</label>
@@ -1656,8 +1659,8 @@ body {
             </div>
           </div>
           <div class="form-actions">
-            <button class="btn btn-primary" onclick="addSkill()">💾 保存技巧</button>
-            <button class="btn btn-outline" onclick="document.getElementById('skillForm').reset();setToday()">重置</button>
+            <button class="btn btn-primary" id="skillSaveBtn" onclick="addSkill()">💾 保存技巧</button>
+            <button class="btn btn-outline" id="skillResetBtn" onclick="resetSkillForm()">重置</button>
           </div>
         </form>
       </div>
@@ -5114,11 +5117,87 @@ function addSkill() {
   };
   DB.skills.push(skill);
   saveData();
+  resetSkillForm();
+  renderSkillsPage();
+  return false;
+}
+
+function editSkill(id) {
+  const s = DB.skills.find(x => x.id === id);
+  if (!s) return;
+  const form = document.getElementById('skillForm');
+  form.date.value = s.date || '';
+  form.module.value = s.module || '言语理解';
+  updateSkillTypeOptions();
+  form.questionType.value = s.questionType || '';
+  updateSkillSubtypeOptions();
+  form.questionSubtype.value = s.questionSubtype || '';
+  form.skillName.value = s.skillName || '';
+  form.strategy.value = s.strategy || '';
+  form.example.value = s.example || '';
+  form.pitfalls.value = s.pitfalls || '';
+  form.mnemonic.value = s.mnemonic || '';
+  // 显示编辑横幅，切换按钮
+  const banner = document.getElementById('skillEditBanner');
+  if (banner) banner.style.display = 'block';
+  const saveBtn = document.getElementById('skillSaveBtn');
+  if (saveBtn) {
+    saveBtn.textContent = '💾 更新技巧';
+    saveBtn.setAttribute('onclick', `updateSkill(${id})`);
+  }
+  const resetBtn = document.getElementById('skillResetBtn');
+  if (resetBtn) {
+    resetBtn.textContent = '取消编辑';
+    resetBtn.setAttribute('onclick', `resetSkillForm()`);
+  }
+  // 滚动到表单
+  window.scrollTo({ top: form.offsetTop - 100, behavior: 'smooth' });
+}
+
+function updateSkill(id) {
+  const form = document.getElementById('skillForm');
+  const fd = new FormData(form);
+  const s = DB.skills.find(x => x.id === id);
+  if (!s) return;
+  if (!fd.get('date') || !fd.get('module') || !fd.get('skillName') || !fd.get('strategy')) {
+    alert('请填写必填项：日期、模块、技巧名称、解题思路');
+    return false;
+  }
+  s.date = fd.get('date');
+  s.module = fd.get('module');
+  s.questionType = fd.get('questionType') || '';
+  s.questionSubtype = fd.get('questionSubtype') || '';
+  s.skillName = fd.get('skillName');
+  s.strategy = fd.get('strategy');
+  s.example = fd.get('example') || '';
+  s.pitfalls = fd.get('pitfalls') || '';
+  s.mnemonic = fd.get('mnemonic') || '';
+  s.updateTime = new Date().toISOString();
+  saveData();
+  resetSkillForm();
+  renderSkillsPage();
+  return false;
+}
+
+function resetSkillForm() {
+  const form = document.getElementById('skillForm');
   form.reset();
   setToday();
   updateSkillTypeOptions();
-  renderSkillsPage();
-  return false;
+  // 隐藏编辑横幅
+  const banner = document.getElementById('skillEditBanner');
+  if (banner) banner.style.display = 'none';
+  // 恢复按钮
+  const saveBtn = document.getElementById('skillSaveBtn');
+  if (saveBtn) {
+    saveBtn.textContent = '💾 保存技巧';
+    saveBtn.setAttribute('onclick', 'addSkill()');
+  }
+  const resetBtn = document.getElementById('skillResetBtn');
+  if (resetBtn) {
+    resetBtn.textContent = '重置';
+    resetBtn.setAttribute('onclick', 'resetSkillForm()');
+  }
 }
 
 function deleteSkill(id) {
@@ -5214,6 +5293,7 @@ function renderSkillItem(s) {
         <button class="btn btn-sm ${s.mastery==='mastered'?'btn-success':'btn-outline'}" onclick="event.stopPropagation();setSkillMastery(${s.id},'mastered')">🟢 掌握</button>
         <button class="btn btn-sm ${s.mastery==='review'?'btn-primary':'btn-outline'}" onclick="event.stopPropagation();setSkillMastery(${s.id},'review')">🟡 需复习</button>
         <button class="btn btn-sm ${s.mastery==='weak'?'btn-danger':'btn-outline'}" onclick="event.stopPropagation();setSkillMastery(${s.id},'weak')">🔴 不熟</button>
+        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();editSkill(${s.id})">✏️ 编辑</button>
         <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteSkill(${s.id})">🗑️ 删除</button>
       </div>
     ` : ''}
