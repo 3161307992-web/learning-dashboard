@@ -2205,6 +2205,70 @@ function renderCivilStats() {
 let selectedErrorTypes = [];
 let editErrorTypesSelected = [];
 
+// 从申论练习一键转错题
+function shenlunToWrong(id) {
+  const p = DB.shenlunPractices.find(x => x.id === id);
+  if (!p) return;
+  // 1. 切换到公务员学习页
+  switchPage('civil');
+  // 2. 切到错题录入表单
+  setTimeout(() => {
+    resetWrongForm();
+    const form = document.getElementById('wrongForm1');
+    if (!form) return;
+    form.date.value = p.date || todayStr();
+    form.module.value = '申论';
+    suggestQuestionTypes();
+    setTimeout(() => {
+      form.questionType.value = p.questionType || '';
+      updateQuestionSubtypes();
+      // 题目：优先用topic；如果有location，拼在一起
+      let qContent = p.topic || '';
+      if (p.location) qContent = `【${p.location}】` + qContent;
+      form.question.value = qContent;
+      // 我的答案：优先文字版 myAnswer（兼容老数据）；新版是作答要点图片）
+      form.myAnswer.value = p.myAnswer || '';
+      // 正确答案：标准答案 + 逻辑梳理 + 素材积累拼接
+      let ref = p.reference || '';
+      if (p.logic) ref += '\n\n【逻辑梳理】\n' + p.logic;
+      if (p.materials) ref += '\n\n【素材积累】\n' + p.materials;
+      form.correctAnswer.value = ref.trim();
+      // 把申论作答要点图片移到错题本的图片数组
+      if (p.answerImages && p.answerImages.length) {
+        setWrongImages(p.answerImages.slice(0, 9)); // 最多带9张
+      }
+      // 把申论的反思预填到解析里
+      setTimeout(() => {
+        const analysis = `【题目反思】\n${p.reflection || '（暂无）'}\n\n【标准答案】\n${p.reference || '（暂无）'}\n${p.logic ? '\n【逻辑梳理】\n' + p.logic : ''}\n${p.materials ? '\n【素材积累】\n' + p.materials : ''}`;
+        document.querySelector('#wrongForm2 textarea[name=analysis]').value = analysis;
+        document.querySelector('#wrongForm2 input[name=knowledgePoint]').value = p.questionType ? `申论：${p.questionType}` : '';
+        selectedErrorTypes = [];
+        renderErrorTypeOptions();
+      }, 50);
+      // 切到第二步
+      document.getElementById('wrongStep1').style.display = 'none';
+      document.getElementById('wrongStep2').style.display = 'block';
+      document.getElementById('step1Badge').classList.remove('active');
+      document.getElementById('step2Badge').classList.add('active');
+      // 暂存_step1Data 给AI分析
+      _wrongStep1Data = {
+        module: '申论',
+        question: qContent,
+        myAnswer: p.myAnswer || '',
+        correctAnswer: p.reference || '',
+        qType: p.questionType || '',
+        images: [...wrongImages]
+      };
+      callDoubaoAI();
+      // 滚动到表单
+      const el = document.getElementById('wrongStep2') || document.getElementById('wrongForm1');
+      if (el) window.scrollTo({ top: el.offsetTop - 100, behavior: 'smooth' });
+      // 给用户提示
+      alert('✅ 已将此申论练习带入错题本表单！请选择错因后保存即可。\n已自动带入：题目、作答要点图片、标准答案和反思。');
+    }, 50);
+  }, 150);
+}
+
 function suggestQuestionTypes() {
   const module = document.querySelector('#wrongForm1 select[name=module]').value;
   const typesObj = MODULE_QUESTION_TYPES[module] || {};
@@ -2292,6 +2356,11 @@ function renderWrongImagePreview() {
 
 function removeWrongImage(idx) {
   wrongImages.splice(idx, 1);
+  renderWrongImagePreview();
+}
+
+function setWrongImages(arr) {
+  wrongImages = Array.isArray(arr) ? arr.slice(0, 9) : [];
   renderWrongImagePreview();
 }
 
@@ -3840,7 +3909,8 @@ function renderShenlunList() {
         ${p.reflection ? `<div style="margin-bottom:8px;"><b style="color:#e53e3e;">💭 题目反思：</b><div style="margin-top:4px;white-space:pre-wrap;color:#742a2a;">${escapeHtml(p.reflection)}</div></div>` : ''}
         ${p.logic ? `<div style="margin-bottom:8px;"><b style="color:#805ad5;">🧠 逻辑梳理：</b><div style="margin-top:4px;white-space:pre-wrap;color:#553c9a;">${escapeHtml(p.logic)}</div></div>` : ''}
         ${p.materials ? `<div style="margin-bottom:8px;"><b style="color:#b7791f;">📌 素材积累：</b><div style="margin-top:4px;white-space:pre-wrap;color:#744210;">${escapeHtml(p.materials)}</div></div>` : ''}
-        <div style="display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+        <div style="display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" style="background:#fff9db;color:#92400e;border-color:#f6e05e;" onclick="event.stopPropagation();shenlunToWrong(${p.id})">📚 加入错题本</button>
           <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();editShenlunPractice(${p.id})">✏️ 编辑</button>
           <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteShenlunPractice(${p.id})">🗑️ 删除</button>
         </div>
