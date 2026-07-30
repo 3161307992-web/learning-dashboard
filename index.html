@@ -915,8 +915,8 @@ body {
             </div>
           </div>
           <div class="form-actions">
-            <button class="btn btn-primary" onclick="addShenlunPractice()">💾 保存练习</button>
-            <button class="btn btn-outline" onclick="document.getElementById('shenlunForm').reset();setToday();clearShenlunAnswerImages();lastImageUploadTarget=''">重置</button>
+            <button type="button" id="shenlunSaveBtn" class="btn btn-primary" onclick="addShenlunPractice()">💾 保存练习</button>
+            <button type="button" id="shenlunResetBtn" class="btn btn-outline" onclick="document.getElementById('shenlunForm').reset();setToday();clearShenlunAnswerImages();lastImageUploadTarget=''">重置</button>
           </div>
         </form>
 
@@ -3525,36 +3525,51 @@ function renderStudyRecordChart() {
 
 /* ===== 申论专项练习 ===== */
 function addShenlunPractice() {
-  const form = document.getElementById('shenlunForm');
-  const fd = new FormData(form);
-  if (!fd.get('date') || !fd.get('questionType') || !fd.get('topic') || !fd.get('duration')) {
-    alert('请填写必填项（带 * 的字段）');
-    return;
+  try {
+    const form = document.getElementById('shenlunForm');
+    if (!form) { alert('错误：找不到申论表单'); return; }
+    const fd = new FormData(form);
+    // 调试：打印所有字段
+    const date = fd.get('date'), qt = fd.get('questionType'),
+          topic = fd.get('topic'), duration = fd.get('duration');
+    if (!date || !qt || !topic || !duration) {
+      const missing = [];
+      if (!date) missing.push('日期');
+      if (!qt) missing.push('题型');
+      if (!topic) missing.push('题目/主题');
+      if (!duration) missing.push('练习时长');
+      alert('请填写必填项：' + missing.join('、'));
+      return;
+    }
+    const p = {
+      id: uid(),
+      date: date,
+      questionType: qt,
+      duration: parseInt(duration) || 0,
+      score: fd.get('score') ? parseInt(fd.get('score')) : null,
+      topic: topic,
+      location: fd.get('location') || '',
+      answerImages: [...shenlunAnswerImages],
+      reference: fd.get('reference') || '',
+      reflection: fd.get('reflection') || '',
+      logic: fd.get('logic') || '',
+      materials: fd.get('materials') || '',
+      nextReviewDate: dateOffset(date, 7) // 录入后7天首次复习
+    };
+    DB.shenlunPractices.push(p);
+    saveData();
+    form.reset();
+    setToday();
+    clearShenlunAnswerImages();
+    lastImageUploadTarget = '';
+    renderShenlunStats();
+    renderShenlunList();
+    renderShenlunReviewArea();
+    showToast(`✅ 已保存：${p.questionType} - ${p.topic.substring(0,20)}${p.topic.length>20?'...':''}`);
+  } catch (e) {
+    console.error('保存申论练习失败:', e);
+    alert('保存失败：' + e.message + '\n请刷新页面重试或联系开发者');
   }
-  const p = {
-    id: uid(),
-    date: fd.get('date'),
-    questionType: fd.get('questionType'),
-    duration: parseInt(fd.get('duration')) || 0,
-    score: fd.get('score') ? parseInt(fd.get('score')) : null,
-    topic: fd.get('topic'),
-    location: fd.get('location') || '',
-    answerImages: [...shenlunAnswerImages],
-    reference: fd.get('reference') || '',
-    reflection: fd.get('reflection') || '',
-    logic: fd.get('logic') || '',
-    materials: fd.get('materials') || '',
-    nextReviewDate: dateOffset(fd.get('date'), 7) // 录入后7天首次复习
-  };
-  DB.shenlunPractices.push(p);
-  saveData();
-  form.reset();
-  setToday();
-  clearShenlunAnswerImages();
-  lastImageUploadTarget = '';
-  renderShenlunStats();
-  renderShenlunList();
-  renderShenlunReviewArea();
 }
 
 function deleteShenlunPractice(id) {
@@ -3588,49 +3603,63 @@ function editShenlunPractice(id) {
   const banner = document.getElementById('shenlunEditBanner');
   if (banner) banner.style.display = 'block';
   window.scrollTo({ top: document.getElementById('shenlunForm').offsetTop - 100, behavior: 'smooth' });
-  // 临时切换保存按钮为更新
-  const saveBtn = form.querySelector('button[onclick="addShenlunPractice()"]');
+  // 临时切换保存按钮为更新（通过 id 选择更稳定）
+  const saveBtn = document.getElementById('shenlunSaveBtn');
   if (saveBtn) {
     saveBtn.textContent = '💾 更新练习';
     saveBtn.setAttribute('onclick', `updateShenlunPractice(${id})`);
-    const resetBtn = form.querySelector('button[onclick*="reset()"]');
-    if (resetBtn) {
-      resetBtn.textContent = '取消编辑';
-      resetBtn.setAttribute('onclick', `cancelShenlunEdit()`);
-    }
+  }
+  const resetBtn = document.getElementById('shenlunResetBtn');
+  if (resetBtn) {
+    resetBtn.textContent = '取消编辑';
+    resetBtn.setAttribute('onclick', `cancelShenlunEdit()`);
   }
 }
 
 function updateShenlunPractice(id) {
-  const form = document.getElementById('shenlunForm');
-  const fd = new FormData(form);
-  const p = DB.shenlunPractices.find(x => x.id === id);
-  if (!p) return;
-  if (!fd.get('date') || !fd.get('questionType') || !fd.get('topic') || !fd.get('duration')) {
-    alert('请填写必填项（带 * 的字段）');
-    return;
+  try {
+    const form = document.getElementById('shenlunForm');
+    const fd = new FormData(form);
+    const p = DB.shenlunPractices.find(x => x.id === id);
+    if (!p) { alert('找不到要更新的申论记录'); return; }
+    const date = fd.get('date'), qt = fd.get('questionType'),
+          topic = fd.get('topic'), duration = fd.get('duration');
+    if (!date || !qt || !topic || !duration) {
+      const missing = [];
+      if (!date) missing.push('日期');
+      if (!qt) missing.push('题型');
+      if (!topic) missing.push('题目/主题');
+      if (!duration) missing.push('练习时长');
+      alert('请填写必填项：' + missing.join('、'));
+      return;
+    }
+    // 录入日期变更时同步重置下次复习日
+    if (p.date !== date) {
+      p.date = date;
+      p.nextReviewDate = dateOffset(date, 7);
+    } else {
+      p.date = date;
+    }
+    p.questionType = qt;
+    p.duration = parseInt(duration) || 0;
+    p.score = fd.get('score') ? parseInt(fd.get('score')) : null;
+    p.topic = topic;
+    p.location = fd.get('location') || '';
+    p.answerImages = [...shenlunAnswerImages];
+    p.reference = fd.get('reference') || '';
+    p.reflection = fd.get('reflection') || '';
+    p.logic = fd.get('logic') || '';
+    p.materials = fd.get('materials') || '';
+    saveData();
+    resetShenlunForm();
+    renderShenlunStats();
+    renderShenlunList();
+    renderShenlunReviewArea();
+    showToast(`✅ 已更新：${p.questionType} - ${p.topic.substring(0,20)}${p.topic.length>20?'...':''}`);
+  } catch (e) {
+    console.error('更新申论练习失败:', e);
+    alert('更新失败：' + e.message + '\n请刷新页面重试');
   }
-  p.date = fd.get('date');
-  p.questionType = fd.get('questionType');
-  p.duration = parseInt(fd.get('duration')) || 0;
-  p.score = fd.get('score') ? parseInt(fd.get('score')) : null;
-  p.topic = fd.get('topic');
-  p.location = fd.get('location') || '';
-  p.answerImages = [...shenlunAnswerImages];
-  p.reference = fd.get('reference') || '';
-  p.reflection = fd.get('reflection') || '';
-  p.logic = fd.get('logic') || '';
-  p.materials = fd.get('materials') || '';
-  // 录入日期变更时同步重置下次复习日
-  if (p.date !== fd.get('date')) {
-    p.date = fd.get('date');
-    p.nextReviewDate = dateOffset(p.date, 7);
-  }
-  saveData();
-  resetShenlunForm();
-  renderShenlunStats();
-  renderShenlunList();
-  renderShenlunReviewArea();
 }
 
 function cancelShenlunEdit() {
@@ -3639,20 +3668,20 @@ function cancelShenlunEdit() {
 
 function resetShenlunForm() {
   const form = document.getElementById('shenlunForm');
-  form.reset();
+  if (form) form.reset();
   setToday();
   clearShenlunAnswerImages();
   lastImageUploadTarget = '';
   // 隐藏编辑模式横幅
   const banner = document.getElementById('shenlunEditBanner');
   if (banner) banner.style.display = 'none';
-  // 恢复按钮文字
-  const saveBtn = form.querySelector('button[onclick*="updateShenlunPractice"]');
+  // 恢复按钮（通过 id 选择更稳定）
+  const saveBtn = document.getElementById('shenlunSaveBtn');
   if (saveBtn) {
     saveBtn.textContent = '💾 保存练习';
     saveBtn.setAttribute('onclick', 'addShenlunPractice()');
   }
-  const resetBtn = form.querySelector('button[onclick*="cancelShenlunEdit"]');
+  const resetBtn = document.getElementById('shenlunResetBtn');
   if (resetBtn) {
     resetBtn.textContent = '重置';
     resetBtn.setAttribute('onclick', "document.getElementById('shenlunForm').reset();setToday();clearShenlunAnswerImages();lastImageUploadTarget=''");
@@ -5961,6 +5990,34 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<!-- Toast 容器 -->
+<div id="toastContainer" style="position:fixed;top:30px;left:50%;transform:translateX(-50%);z-index:99999;pointer-events:none;display:flex;flex-direction:column;gap:8px;align-items:center;"></div>
+<style>
+.toast-item {
+  padding:10px 18px;border-radius:8px;background:#1a202c;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,0.18);
+  font-size:14px;font-weight:600;pointer-events:auto;animation:toastIn 0.25s ease;max-width:90vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.toast-item.success { background:#2f855a; }
+.toast-item.warn    { background:#d69e2e; }
+.toast-item.error   { background:#c53030; }
+@keyframes toastIn  { from { opacity:0; transform: translateY(-10px);} to { opacity:1; transform:none; } }
+@keyframes toastOut { to   { opacity:0; transform: translateY(-10px);} }
+</style>
+<script>
+function showToast(msg, type='success', duration=2400) {
+  try {
+    const box = document.getElementById('toastContainer');
+    if (!box) { alert(msg); return; }
+    const t = document.createElement('div');
+    t.className = 'toast-item ' + (type || '');
+    t.textContent = msg;
+    box.appendChild(t);
+    setTimeout(() => { t.style.animation = 'toastOut 0.2s ease forwards'; }, duration - 250);
+    setTimeout(() => { t.remove && t.remove(); }, duration);
+  } catch (_) { try { alert(msg); } catch(_e) {} }
+}
 </script>
 </body>
 </html>
