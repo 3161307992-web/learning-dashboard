@@ -618,6 +618,7 @@ body {
         <button class="btn btn-outline btn-sm" style="font-size:11px;padding:4px 8px;flex:1;" onclick="document.getElementById('importFile').click()">📥 导入数据</button>
       </div>
       <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;" id="storageUsage">💾 存储：计算中...</div>
       <div>数据本地存储 · v2.1</div>
     </div>
   </aside>
@@ -1897,7 +1898,56 @@ function loadData() {
   }
 }
 function saveData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
+  try {
+    const dataStr = JSON.stringify(DB);
+    localStorage.setItem(STORAGE_KEY, dataStr);
+    updateStorageUsage(dataStr);
+    // 容量预警：> 4MB 提示一次（存 5MB 左右浏览器就会超限）
+    try {
+      const kb = Math.round(dataStr.length / 1024);
+      if (kb > 4200 && !saveData._warned) {
+        saveData._warned = true;
+        setTimeout(() => {
+          showToast(`⚠️ 存储空间已用 ${kb}KB，接近上限，建议导出备份并清理旧的带图片的错题/申论记录`, 'warn', 5000);
+        }, 100);
+      }
+    } catch(_) {}
+    return true;
+  } catch (e) {
+    // 典型错误：QuotaExceededError (localStorage 容量满，通常 < 5MB)
+    const msg = String(e && e.message || e).toLowerCase();
+    let userMsg;
+    if (msg.includes('quota') || msg.includes('exceed') || msg.includes('storage') || msg.includes('full') || msg.includes('range')) {
+      userMsg = '📦 浏览器存储空间已满（约5MB上限）！\n\n' +
+        '建议操作：\n' +
+        '1️⃣ 先点击左侧【📤 导出数据】备份一下全部数据，防止丢失\n' +
+        '2️⃣ 删除一些时间较早、带有多张图片的申论练习或错题（图片特别占空间）\n' +
+        '3️⃣ 清理后再保存即可\n\n' +
+        '（iPad Safari：进入 设置 → Safari → 高级 → 网站数据，清理本网站数据后再导入回来）';
+    } else {
+      userMsg = '保存失败：' + (e && e.message ? e.message : e) +
+        '\n请先导出数据备份，然后刷新页面重试。';
+    }
+    console.error('[saveData] 保存失败:', e, 'DB大小约:', Math.round(JSON.stringify(DB).length/1024), 'KB');
+    alert(userMsg);
+    return false;
+  }
+}
+
+function updateStorageUsage(dataStrOrNull) {
+  try {
+    const el = document.getElementById('storageUsage');
+    if (!el) return;
+    const str = (typeof dataStrOrNull === 'string') ? dataStrOrNull : JSON.stringify(DB);
+    const kb = str.length / 1024;
+    const limitKb = 5 * 1024; // 约 5MB
+    const pct = Math.min(100, Math.round(kb / limitKb * 100));
+    let color = 'var(--text-secondary)';
+    if (pct >= 90) color = '#c53030';
+    else if (pct >= 70) color = '#d69e2e';
+    el.innerHTML = `💾 存储：${kb < 1024 ? kb.toFixed(0)+'KB' : (kb/1024).toFixed(1)+'MB'} / ~5MB <span style="opacity:0.7;">(${pct}%)</span>`;
+    el.style.color = color;
+  } catch (_) {}
 }
 function exportData() {
   const dataStr = JSON.stringify(DB, null, 2);
@@ -3557,7 +3607,8 @@ function addShenlunPractice() {
       nextReviewDate: dateOffset(date, 7) // 录入后7天首次复习
     };
     DB.shenlunPractices.push(p);
-    saveData();
+    // saveData 内部已处理容量超限并弹窗提示用户，此处只需判断返回值
+    if (saveData() === false) return;
     form.reset();
     setToday();
     clearShenlunAnswerImages();
@@ -3568,7 +3619,7 @@ function addShenlunPractice() {
     showToast(`✅ 已保存：${p.questionType} - ${p.topic.substring(0,20)}${p.topic.length>20?'...':''}`);
   } catch (e) {
     console.error('保存申论练习失败:', e);
-    alert('保存失败：' + e.message + '\n请刷新页面重试或联系开发者');
+    alert('保存出错：' + (e.message || e));
   }
 }
 
@@ -3650,7 +3701,7 @@ function updateShenlunPractice(id) {
     p.reflection = fd.get('reflection') || '';
     p.logic = fd.get('logic') || '';
     p.materials = fd.get('materials') || '';
-    saveData();
+    if (saveData() === false) return;
     resetShenlunForm();
     renderShenlunStats();
     renderShenlunList();
@@ -3658,7 +3709,7 @@ function updateShenlunPractice(id) {
     showToast(`✅ 已更新：${p.questionType} - ${p.topic.substring(0,20)}${p.topic.length>20?'...':''}`);
   } catch (e) {
     console.error('更新申论练习失败:', e);
-    alert('更新失败：' + e.message + '\n请刷新页面重试');
+    alert('更新出错：' + (e.message || e));
   }
 }
 
@@ -5986,6 +6037,7 @@ function init() {
   // 设置反思表单默认效率自评为 8 分
   const reviewForm = document.getElementById('reviewForm');
   if (reviewForm && reviewForm.efficiencyRating) reviewForm.efficiencyRating.value = '8';
+  updateStorageUsage();
   renderCivilPage();
 }
 
